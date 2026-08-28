@@ -723,7 +723,7 @@ canvas { display: block; width: 100%; height: 100%; }
       cachedKlines1h = await res1h.json();
       cachedKlines4h = await res4h.json();
 
-      // 計算三週期同步共振：在同一個 4H 區間內，4H、1H、15M 皆出現第一根站上所有均線
+      // 計算三週期同步共振：在同一個 12 小時區間內，4H、1H、15M 皆出現第一根站上所有均線
       cachedRocket4hIndices.clear();
       cachedRocket1hIndices.clear();
       cachedRocket15mIndices.clear();
@@ -753,12 +753,12 @@ canvas { display: block; width: 100%; height: 100%; }
 
         if (isNow4h && !isPrev4h) {
           const t4hStart = parseInt(cachedKlines4h[i][0]);
-          const t4hEnd = t4hStart + 4 * 3600 * 1000; // 4小時時間範圍
+          const t4hEnd = t4hStart + 12 * 3600 * 1000; // 擴大為 12 小時時間範圍
 
           let found1hMatch = false;
           let matched1hIndices = [];
 
-          // 2. 檢查該 4H 區間內是否有 1H 第一根站上
+          // 2. 檢查該 12 小時區間內是否有 1H 第一根站上
           for (let j = 1; j < cachedKlines1h.length; j++) {
             const t1h = parseInt(cachedKlines1h[j][0]);
             if (t1h >= t4hStart && t1h < t4hEnd) {
@@ -776,7 +776,7 @@ canvas { display: block; width: 100%; height: 100%; }
             let found15mMatch = false;
             let matched15mIndices = [];
 
-            // 3. 檢查該 4H 區間內是否有 15M 第一根站上
+            // 3. 檢查該 12 小時區間內是否有 15M 第一根站上
             for (let k = 1; k < cachedKlines15m.length; k++) {
               const t15m = parseInt(cachedKlines15m[k][0]);
               if (t15m >= t4hStart && t15m < t4hEnd) {
@@ -790,7 +790,7 @@ canvas { display: block; width: 100%; height: 100%; }
               }
             }
 
-            // 如果三者皆在同一個 4H 區間內符合條件，標記三週期的火箭！
+            // 如果三者皆在同一個 12 小時區間內符合條件，標記三週期的火箭！
             if (found15mMatch) {
               cachedRocket4hIndices.add(i);
               matched1hIndices.forEach(j => cachedRocket1hIndices.add(j));
@@ -815,9 +815,9 @@ canvas { display: block; width: 100%; height: 100%; }
 
     const hasRocket = cachedRocket4hIndices.size > 0;
 
-    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (hasRocket ? ` | 🚀 三週期火箭共振` : (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : ''));
-    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (hasRocket ? ` | 🚀 三週期火箭共振` : (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
-    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (hasRocket ? ` | 🚀 三週期火箭共振` : (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
+    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (hasRocket ? ` | 🚀 12H跨週期火箭共振` : (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : ''));
+    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (hasRocket ? ` | 🚀 12H跨週期火箭共振` : (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
+    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (hasRocket ? ` | 🚀 12H跨週期火箭共振` : (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
   }
 
   function redrawAllPanels() {
