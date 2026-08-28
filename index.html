@@ -655,6 +655,19 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.fillText('⚡', x, highY - 4);
         ctx.restore();
       }
+
+      // 💧 繪製量能均溫提示符號（當成交量同時大於 5VM 與 10VM，顯示在成交量柱狀圖頂端內）
+      const v5 = vm5All[absoluteIdx];
+      const v10 = vm10All[absoluteIdx];
+      if (v5 !== null && v10 !== null && vol >= v5 && vol >= v10) {
+        ctx.save();
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const vYPos = getYVol(vol);
+        ctx.fillText('💧', x, vYPos + 2);
+        ctx.restore();
+      }
     });
 
     const drawLine = (dataArray, color, getYFunc, width = 1.2) => {
