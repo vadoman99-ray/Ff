@@ -217,15 +217,15 @@ canvas { display: block; width: 100%; height: 100%; }
 
     <div class="charts-wrapper" id="chartsWrapper">
       <div class="chart-panel" id="wrapper15m" data-period="15m">
-        <span class="panel-tag">15M 時間框架 (100根)</span>
+        <span class="panel-tag" id="tagText15m">15M 時間框架 (100根)</span>
         <canvas id="klineCanvas15m"></canvas>
       </div>
       <div class="chart-panel" id="wrapper1h" data-period="1h">
-        <span class="panel-tag">1H 時間框架 (80根)</span>
+        <span class="panel-tag" id="tagText1h">1H 時間框架 (80根)</span>
         <canvas id="klineCanvas1h"></canvas>
       </div>
       <div class="chart-panel" id="wrapper4h" data-period="4h">
-        <span class="panel-tag">4H 時間框架 (60根)</span>
+        <span class="panel-tag" id="tagText4h">4H 時間框架 (60根)</span>
         <canvas id="klineCanvas4h"></canvas>
       </div>
     </div>
@@ -253,7 +253,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let tickerMap = new Map(); 
   let currentIndex = -1; 
-  let maximizedPeriod = null; // 紀錄目前放大的週期：null, '15m', '1h', '4h'
+  let maximizedPeriod = null; 
 
   const dom = {
     scanBtn: document.getElementById('scanBtn'),
@@ -281,7 +281,10 @@ canvas { display: block; width: 100%; height: 100%; }
     wrapper4h: document.getElementById('wrapper4h'),
     canvas15m: document.getElementById('klineCanvas15m'),
     canvas1h: document.getElementById('klineCanvas1h'),
-    canvas4h: document.getElementById('klineCanvas4h')
+    canvas4h: document.getElementById('klineCanvas4h'),
+    tagText15m: document.getElementById('tagText15m'),
+    tagText1h: document.getElementById('tagText1h'),
+    tagText4h: document.getElementById('tagText4h')
   };
 
   const ctx15m = dom.canvas15m.getContext('2d');
@@ -309,13 +312,20 @@ canvas { display: block; width: 100%; height: 100%; }
     const closes = klinesRaw.map(k => parseFloat(k[4]));
     const price = closes[totalLen - 1];
 
+    const ma5 = calculateSMA(closes, P0)[totalLen - 1];
     const ma1 = calculateSMA(closes, P1)[totalLen - 1];
     const ma2 = calculateSMA(closes, P2)[totalLen - 1];
     const ma3 = calculateSMA(closes, P3)[totalLen - 1];
 
     if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
       const ma3DistPercent = ((price - ma3) / ma3) * 100;
-      return { price, ma3DistPercent };
+      // 檢查是否站上所有均線 (5MA, 30MA, 45MA, 60MA)
+      const isAboveAllMAs = (ma5 !== null && price >= ma5) && 
+                            (ma1 !== null && price >= ma1) && 
+                            (ma2 !== null && price >= ma2) && 
+                            (ma3 !== null && price >= ma3);
+
+      return { price, ma3DistPercent, isAboveAllMAs };
     }
     return null;
   }
@@ -523,7 +533,6 @@ canvas { display: block; width: 100%; height: 100%; }
     const showVM10 = vm10All.slice(-actualShowCount);
 
     const rect = wrapper.getBoundingClientRect();
-    // 如果此面板被最小化，寬高可能為 0，避免無謂計算
     if (rect.width === 0 || rect.height === 0) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -664,11 +673,24 @@ canvas { display: block; width: 100%; height: 100%; }
       cachedKlines1h = await res1h.json();
       cachedKlines4h = await res4h.json();
 
+      // 更新時間框架標籤文字（包含是否站上所有均線）
+      updatePanelTags(cachedKlines15m, cachedKlines1h, cachedKlines4h);
+
       redrawAllPanels();
 
     } catch (err) {
       if (err.name !== 'AbortError') console.error(err);
     }
+  }
+
+  function updatePanelTags(k15m, k1h, k4h) {
+    const b15 = isBullishAlignment(k15m);
+    const b1h = isBullishAlignment(k1h);
+    const b4h = isBullishAlignment(k4h);
+
+    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (b15 && b15.isAboveAllMAs ? ` | ⚡ 站上所有均線` : '');
+    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (b1h && b1h.isAboveAllMAs ? ` | ⚡ 站上所有均線` : '');
+    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (b4h && b4h.isAboveAllMAs ? ` | ⚡ 站上所有均線` : '');
   }
 
   function redrawAllPanels() {
@@ -696,7 +718,6 @@ canvas { display: block; width: 100%; height: 100%; }
       dom.wrapper4h.classList.add('maximized');
     }
 
-    // 等 DOM 樣式變更完成後重新繪製畫布尺寸
     setTimeout(() => {
       redrawAllPanels();
     }, 50);
@@ -704,9 +725,9 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function handlePanelClick(period) {
     if (maximizedPeriod === period) {
-      maximizedPeriod = null; // 再次點擊還原三分割
+      maximizedPeriod = null; 
     } else {
-      maximizedPeriod = period; // 填滿視窗
+      maximizedPeriod = period; 
     }
     updatePanelLayout();
   }
@@ -721,7 +742,7 @@ canvas { display: block; width: 100%; height: 100%; }
     currentIndex = index;
     const item = currentList[currentIndex];
 
-    maximizedPeriod = null; // 每次打開重置為三分割
+    maximizedPeriod = null; 
     updatePanelLayout();
 
     dom.symbolRankTag.innerText = `#${currentIndex + 1}`;
