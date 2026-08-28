@@ -137,8 +137,14 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .nav-btn.next { right: 8px; }
 
 .charts-wrapper { flex: 1; width: 100%; height: 100%; display: flex; flex-direction: column; background: #060911; overflow: hidden; }
-.chart-panel { flex: 1; width: 100%; height: 33.33%; position: relative; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.chart-panel { 
+  flex: 1; width: 100%; position: relative; border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
+  transition: flex 0.25s ease, height 0.25s ease; cursor: pointer;
+}
 .chart-panel:last-child { border-bottom: none; }
+.chart-panel.minimized { flex: 0 0 0px !important; height: 0 !important; border-bottom: none; overflow: hidden; }
+.chart-panel.maximized { flex: 1 1 100% !important; height: 100% !important; }
+
 .panel-tag {
   position: absolute; top: 4px; left: 8px; z-index: 5;
   font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 800;
@@ -209,16 +215,16 @@ canvas { display: block; width: 100%; height: 100%; }
       <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
     </div>
 
-    <div class="charts-wrapper">
-      <div class="chart-panel" id="wrapper15m">
+    <div class="charts-wrapper" id="chartsWrapper">
+      <div class="chart-panel" id="wrapper15m" data-period="15m">
         <span class="panel-tag">15M 時間框架 (100根)</span>
         <canvas id="klineCanvas15m"></canvas>
       </div>
-      <div class="chart-panel" id="wrapper1h">
+      <div class="chart-panel" id="wrapper1h" data-period="1h">
         <span class="panel-tag">1H 時間框架 (80根)</span>
         <canvas id="klineCanvas1h"></canvas>
       </div>
-      <div class="chart-panel" id="wrapper4h">
+      <div class="chart-panel" id="wrapper4h" data-period="4h">
         <span class="panel-tag">4H 時間框架 (60根)</span>
         <canvas id="klineCanvas4h"></canvas>
       </div>
@@ -237,7 +243,6 @@ canvas { display: block; width: 100%; height: 100%; }
   const COUNT_1H = 80;
   const COUNT_4H = 60;
 
-  // 為了計算 60MA 與 10VM，取樣長度需確保足夠
   const FETCH_LIMIT = P3 + 60; 
 
   let results15M = [];
@@ -248,6 +253,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let tickerMap = new Map(); 
   let currentIndex = -1; 
+  let maximizedPeriod = null; // 紀錄目前放大的週期：null, '15m', '1h', '4h'
 
   const dom = {
     scanBtn: document.getElementById('scanBtn'),
@@ -269,6 +275,7 @@ canvas { display: block; width: 100%; height: 100%; }
     closeModalBtn: document.getElementById('closeModalBtn'),
     prevBtn: document.getElementById('prevBtn'),
     nextBtn: document.getElementById('nextBtn'),
+    chartsWrapper: document.getElementById('chartsWrapper'),
     wrapper15m: document.getElementById('wrapper15m'),
     wrapper1h: document.getElementById('wrapper1h'),
     wrapper4h: document.getElementById('wrapper4h'),
@@ -502,7 +509,6 @@ canvas { display: block; width: 100%; height: 100%; }
     const ma45All = calculateSMA(closesAll, P2);
     const ma60All = calculateSMA(closesAll, P3);
 
-    // 均量改為 5VM 與 10VM
     const vm5All = calculateSMA(volumesAll, 5);
     const vm10All = calculateSMA(volumesAll, 10);
 
@@ -517,6 +523,9 @@ canvas { display: block; width: 100%; height: 100%; }
     const showVM10 = vm10All.slice(-actualShowCount);
 
     const rect = wrapper.getBoundingClientRect();
+    // 如果此面板被最小化，寬高可能為 0，避免無謂計算
+    if (rect.width === 0 || rect.height === 0) return;
+
     const dpr = window.devicePixelRatio || 1;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
@@ -626,10 +635,13 @@ canvas { display: block; width: 100%; height: 100%; }
     drawLine(showMA45, '#ff9100', getYPrice);
     drawLine(showMA60, '#ff007f', getYPrice);
 
-    // 繪製 5VM 與 10VM 均量線
     drawLine(showVM5, '#00f0ff', getYVol, 1.0);
     drawLine(showVM10, '#9d4edd', getYVol, 1.0);
   }
+
+  let cachedKlines15m = null;
+  let cachedKlines1h = null;
+  let cachedKlines4h = null;
 
   async function loadAndDrawCharts(symbol) {
     if (activeChartController) activeChartController.abort();
@@ -648,24 +660,69 @@ canvas { display: block; width: 100%; height: 100%; }
 
       if (!res15m.ok || !res1h.ok || !res4h.ok) return;
 
-      const klines15m = await res15m.json();
-      const klines1h = await res1h.json();
-      const klines4h = await res4h.json();
+      cachedKlines15m = await res15m.json();
+      cachedKlines1h = await res1h.json();
+      cachedKlines4h = await res4h.json();
 
-      renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, klines15m, COUNT_15M);
-      renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, klines1h, COUNT_1H);
-      renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, klines4h, COUNT_4H);
+      redrawAllPanels();
 
     } catch (err) {
       if (err.name !== 'AbortError') console.error(err);
     }
   }
 
+  function redrawAllPanels() {
+    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M);
+    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H);
+    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H);
+  }
+
+  function updatePanelLayout() {
+    [dom.wrapper15m, dom.wrapper1h, dom.wrapper4h].forEach(w => {
+      w.classList.remove('maximized', 'minimized');
+    });
+
+    if (maximizedPeriod === '15m') {
+      dom.wrapper15m.classList.add('maximized');
+      dom.wrapper1h.classList.add('minimized');
+      dom.wrapper4h.classList.add('minimized');
+    } else if (maximizedPeriod === '1h') {
+      dom.wrapper15m.classList.add('minimized');
+      dom.wrapper1h.classList.add('maximized');
+      dom.wrapper4h.classList.add('minimized');
+    } else if (maximizedPeriod === '4h') {
+      dom.wrapper15m.classList.add('minimized');
+      dom.wrapper1h.classList.add('minimized');
+      dom.wrapper4h.classList.add('maximized');
+    }
+
+    // 等 DOM 樣式變更完成後重新繪製畫布尺寸
+    setTimeout(() => {
+      redrawAllPanels();
+    }, 50);
+  }
+
+  function handlePanelClick(period) {
+    if (maximizedPeriod === period) {
+      maximizedPeriod = null; // 再次點擊還原三分割
+    } else {
+      maximizedPeriod = period; // 填滿視窗
+    }
+    updatePanelLayout();
+  }
+
+  dom.wrapper15m.addEventListener('click', () => handlePanelClick('15m'));
+  dom.wrapper1h.addEventListener('click', () => handlePanelClick('1h'));
+  dom.wrapper4h.addEventListener('click', () => handlePanelClick('4h'));
+
   function openChartModal(index) {
     const currentList = getCurrentList();
     if (index < 0 || index >= currentList.length) return;
     currentIndex = index;
     const item = currentList[currentIndex];
+
+    maximizedPeriod = null; // 每次打開重置為三分割
+    updatePanelLayout();
 
     dom.symbolRankTag.innerText = `#${currentIndex + 1}`;
     dom.symbolTitle.innerText = item.symbol;
@@ -682,6 +739,7 @@ canvas { display: block; width: 100%; height: 100%; }
     dom.chartModal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
     currentIndex = -1;
+    maximizedPeriod = null;
   }
 
   function navigateSymbol(direction) {
@@ -749,9 +807,8 @@ canvas { display: block; width: 100%; height: 100%; }
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      const currentList = getCurrentList();
-      if (dom.chartModal.classList.contains('active') && currentIndex !== -1 && currentList[currentIndex]) {
-        loadAndDrawCharts(currentList[currentIndex].symbol);
+      if (dom.chartModal.classList.contains('active')) {
+        redrawAllPanels();
       }
     }, 150);
   });
