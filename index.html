@@ -305,7 +305,6 @@ canvas { display: block; width: 100%; height: 100%; }
     return ma; 
   } 
 
-  // 檢查單一根K棒是否同時站上所有均線 (5MA, 30MA, 45MA, 60MA)
   function checkAboveAllMAsAtIndex(closes, ma5, ma30, ma45, ma60, idx) {
     if (idx < 0 || idx >= closes.length) return false;
     const price = closes[idx];
@@ -335,11 +334,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
     if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
       const ma3DistPercent = ((price - ma3) / ma3) * 100;
-      
-      // 當前最新一根是否站上所有均線
       const isAboveAllNow = checkAboveAllMAsAtIndex(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
-      
-      // 判定是否為「第一根」站上所有均線：當前最新一根站上，但上一根（倒數第二根）未完全站上所有均線
       const isAboveAllPrev = checkAboveAllMAsAtIndex(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
       const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
 
@@ -528,7 +523,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let activeChartController = null;
 
-  function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount) {
+  function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, period, rocketIndices = new Set()) {
     const closesAll = klinesRaw.map(k => parseFloat(k[4]));
     const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
 
@@ -618,6 +613,7 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillText(formatVol(maxVol), width - padding.right + 4, volTop + 8);
 
     showK.forEach((k, i) => {
+      const absoluteIdx = showStartIndex + i;
       const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]), vol = parseFloat(k[5]);
       const x = padding.left + i * barWidth + barWidth / 2;
       const isUp = close >= open;
@@ -643,22 +639,35 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-      // 檢查是否為「第一根站上所有均線」的K棒，若是則在該K棒上方繪製 ⚡ 符號
-      const absoluteIdx = showStartIndex + i;
-      const isNowAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
-      const isPrevAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
-      
-      if (isNowAbove && !isPrevAbove) {
+      // 若在同步共振的火箭清單中，繪製 🚀 小火箭符號
+      if (rocketIndices.has(absoluteIdx)) {
         ctx.save();
-        ctx.font = 'bold 11px sans-serif';
+        ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillStyle = '#ffea00'; // 醒目黃色閃電
-        ctx.shadowColor = '#ffea00';
-        ctx.shadowBlur = 6;
+        ctx.fillStyle = '#ffea00';
+        ctx.shadowColor = '#ff9100';
+        ctx.shadowBlur = 8;
         const highY = getYPrice(high);
-        ctx.fillText('⚡', x, highY - 4);
+        ctx.fillText('🚀', x, highY - 4);
         ctx.restore();
+      } else {
+        // 一般突破閃電
+        const isNowAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
+        const isPrevAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
+        
+        if (isNowAbove && !isPrevAbove) {
+          ctx.save();
+          ctx.font = 'bold 11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillStyle = '#ffea00';
+          ctx.shadowColor = '#ffea00';
+          ctx.shadowBlur = 6;
+          const highY = getYPrice(high);
+          ctx.fillText('⚡', x, highY - 4);
+          ctx.restore();
+        }
       }
     });
 
@@ -689,6 +698,9 @@ canvas { display: block; width: 100%; height: 100%; }
   let cachedKlines15m = null;
   let cachedKlines1h = null;
   let cachedKlines4h = null;
+  let cachedRocket4hIndices = new Set();
+  let cachedRocket1hIndices = new Set();
+  let cachedRocket15mIndices = new Set();
 
   async function loadAndDrawCharts(symbol) {
     if (activeChartController) activeChartController.abort();
@@ -711,6 +723,83 @@ canvas { display: block; width: 100%; height: 100%; }
       cachedKlines1h = await res1h.json();
       cachedKlines4h = await res4h.json();
 
+      // 計算三週期同步共振：在同一個 4H 區間內，4H、1H、15M 皆出現第一根站上所有均線
+      cachedRocket4hIndices.clear();
+      cachedRocket1hIndices.clear();
+      cachedRocket15mIndices.clear();
+
+      const closes4h = cachedKlines4h.map(k => parseFloat(k[4]));
+      const ma5_4h = calculateSMA(closes4h, P0);
+      const ma30_4h = calculateSMA(closes4h, P1);
+      const ma45_4h = calculateSMA(closes4h, P2);
+      const ma60_4h = calculateSMA(closes4h, P3);
+
+      const closes1h = cachedKlines1h.map(k => parseFloat(k[4]));
+      const ma5_1h = calculateSMA(closes1h, P0);
+      const ma30_1h = calculateSMA(closes1h, P1);
+      const ma45_1h = calculateSMA(closes1h, P2);
+      const ma60_1h = calculateSMA(closes1h, P3);
+
+      const closes15m = cachedKlines15m.map(k => parseFloat(k[4]));
+      const ma5_15m = calculateSMA(closes15m, P0);
+      const ma30_15m = calculateSMA(closes15m, P1);
+      const ma45_15m = calculateSMA(closes15m, P2);
+      const ma60_15m = calculateSMA(closes15m, P3);
+
+      // 1. 尋找 4H 第一根站上的 K 棒
+      for (let i = 1; i < cachedKlines4h.length; i++) {
+        const isNow4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i);
+        const isPrev4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i - 1);
+
+        if (isNow4h && !isPrev4h) {
+          const t4hStart = parseInt(cachedKlines4h[i][0]);
+          const t4hEnd = t4hStart + 4 * 3600 * 1000; // 4小時時間範圍
+
+          let found1hMatch = false;
+          let matched1hIndices = [];
+
+          // 2. 檢查該 4H 區間內是否有 1H 第一根站上
+          for (let j = 1; j < cachedKlines1h.length; j++) {
+            const t1h = parseInt(cachedKlines1h[j][0]);
+            if (t1h >= t4hStart && t1h < t4hEnd) {
+              const isNow1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j);
+              const isPrev1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j - 1);
+
+              if (isNow1h && !isPrev1h) {
+                found1hMatch = true;
+                matched1hIndices.push(j);
+              }
+            }
+          }
+
+          if (found1hMatch) {
+            let found15mMatch = false;
+            let matched15mIndices = [];
+
+            // 3. 檢查該 4H 區間內是否有 15M 第一根站上
+            for (let k = 1; k < cachedKlines15m.length; k++) {
+              const t15m = parseInt(cachedKlines15m[k][0]);
+              if (t15m >= t4hStart && t15m < t4hEnd) {
+                const isNow15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k);
+                const isPrev15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k - 1);
+
+                if (isNow15m && !isPrev15m) {
+                  found15mMatch = true;
+                  matched15mIndices.push(k);
+                }
+              }
+            }
+
+            // 如果三者皆在同一個 4H 區間內符合條件，標記三週期的火箭！
+            if (found15mMatch) {
+              cachedRocket4hIndices.add(i);
+              matched1hIndices.forEach(j => cachedRocket1hIndices.add(j));
+              matched15mIndices.forEach(k => cachedRocket15mIndices.add(k));
+            }
+          }
+        }
+      }
+
       updatePanelTags(cachedKlines15m, cachedKlines1h, cachedKlines4h);
       redrawAllPanels();
 
@@ -724,15 +813,17 @@ canvas { display: block; width: 100%; height: 100%; }
     const b1h = isBullishAlignment(k1h);
     const b4h = isBullishAlignment(k4h);
 
-    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : (b15 && b15.isAboveAllMAs ? ` | 站上所有均線` : ''));
-    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : (b1h && b1h.isAboveAllMAs ? ` | 站上所有均線` : ''));
-    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : (b4h && b4h.isAboveAllMAs ? ` | 站上所有均線` : ''));
+    const hasRocket = cachedRocket4hIndices.size > 0;
+
+    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (hasRocket ? ` | 🚀 三週期火箭共振` : (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : ''));
+    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (hasRocket ? ` | 🚀 三週期火箭共振` : (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
+    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (hasRocket ? ` | 🚀 三週期火箭共振` : (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
   }
 
   function redrawAllPanels() {
-    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M);
-    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H);
-    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H);
+    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M, '15m', cachedRocket15mIndices);
+    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H, '1h', cachedRocket1hIndices);
+    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H, '4h', cachedRocket4hIndices);
   }
 
   function updatePanelLayout() {
