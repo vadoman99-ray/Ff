@@ -1,35 +1,58 @@
-這是一份專為加密貨幣交易者打造的 「多週期多頭排列儀表板」 單檔網頁應用程式。它透過 Binance（幣安）的公開合約 API，自動篩選出 24 小時成交額超過 1 億美元（>1億 USDT）的大型流動性標的，並針對 15M、1H、4H 三個不同的時間框架進行多頭排列的技術指標運算與共振分析。
-以下是該程式的核心邏輯與架構詳細解說：
-一、 核心架構與常數設定
- * 資料來源：直接調用幣安公開 API ([https://fapi.binance.com](https://fapi.binance.com))，包含 24 小時Ticker行情與 K 線歷史數據。
- * 流動性過濾：篩選出結尾為 USDT 且 24 小時成交額 (quoteVolume) 超過 1 億 USDT 的幣種，確保選出的標的有足夠深度。
- * 均線參數：
-   * 均線設定：採用 5MA (P0)、30MA (P1)、45MA (P2)、60MA (P3)。
-   * 抓取根數：為了確保均線計算平滑且足夠，每次取得 K 線時會抓取 P3 + 60（即 120 根以上）的數據。
-二、 多頭排列核心演算法 (isBullishAlignment)
-程式針對每一個候選幣種的 K 線數據進行以下數學運算：
- * 簡單移動平均線計算 (calculateSMA)：計算出 5、30、45、60 周期的移動平均線（SMA）。
- * 排列判定：
-   * 檢查中長期均線是否呈現多頭排列：30MA > 45MA > 60MA。
-   * 檢查當前價格是否站上長均線：Price >= 60MA。
- * 突破點與回測檢核：
-   * isAboveAllMAsAtIndex：檢查特定 K 棒當下，價格是否同時站上所有均線（Price >= 5MA, 30MA, 45MA, 60MA）。
-   * 首根突破 (isFirstBarAboveAll)：若「當前 K 棒」站上所有均線，但「前一根 K 棒」沒有，則被判定為 「第一根突破」（會在圖表上標上閃電 ⚡ 符號）。
-   * 均線距離百分比 (ma3DistPercent)：計算當前價格高於 60MA 的百分比距離，作為排行榜排序的依據（貼近 60MA 的標的排在前面）。
-三、 多週期共振與火箭機制 (🚀)
-程式支援多週期切換（15M、1H、4H 及共振區）：
- * 跨週期共振 (matchCount)：同時滿足多個時間框架（如 1H 和 4H 同時多頭排列）的標的會被歸類進共振清單。
- * ±12 小時同步共振：當使用者點開圖表詳細檢視時，程式會以 1 小時 K 棒的第一根突破點為中心，去搜尋前後 12 小時之內，15M 與 4H 是否也有相應的突破動作。若完美吻合，則會點亮 🚀 小火箭 標記，協助交易者尋找大級別與小級別同步啟動的爆發點。
-四、 Canvas 高效能繪圖引擎
-為了在行動裝置與桌面端流暢呈現大量圖表，程式捨棄了沉重的圖表套件，改用 HTML5 Canvas 自行刻畫：
- * 雙層面板設計：繪製主圖（K線、5/30/45/60 MA）與副圖（成交量、5VM/10VM 均量線）。
- * DPR 高解析度適配：針對 Retina 與高畫質手機螢幕進行 devicePixelRatio 縮放補償，確保線條與字體清晰不模糊。
- * 互動放大/縮小 (handlePanelClick)：點擊任一時間框架的面板可以將其最大化（或還原三分割），方便深入觀察特定週期的細節。
-五、 使用者體驗與介面互動 (UX)
- * 批次非同步控制 (batchProcess)：為了避免瞬間發送上百個 API 請求造成瀏覽器卡死或被交易所封鎖，程式採用了 高達 15 個並發數限制 (CONCURRENCY_LIMIT) 的非同步排隊機制，並即時更新頂部的進度條。
- * 響應式與手勢支援：
-   * 滑動切換：在彈窗檢視幣種時，支援手機左右滑動 (touchstart / touchend) 或鍵盤左右方向鍵快速切換不同幣種。
-   * 快捷鍵：支援 Esc 關閉、方向鍵換幣。
+這是一份專為加密貨幣交易者打造的 「多週期多頭排列選股與互動式圖表儀表板」網頁應用程式。它透過 Binance（幣安）合約 API 即時抓取全市場日成交量大於 1 億美元的交易對，進行多週期（15M、1H、4H）的均線多頭篩選，並內建畫布（Canvas）圖表繪製引擎，提供清晰的視覺化 K 線與技術指標。
+以下為該程式的核心邏輯與架構詳細拆解：
+一、 核心架構與參數設定
+ * API 來源： 使用 Binance 的公開合約 API ([https://fapi.binance.com](https://fapi.binance.com)) 抓取 24 小時行情與 K 線資料。
+ * 過濾門檻：
+   * 僅篩選結尾為 USDT 的合約標的。
+   * 24 小時總成交額 (quoteVolume) 必須 大於 1 億 USDT (MIN_VOLUME = 100000000)。
+ * 均線參數定義：
+   * P_0 = 5 根 K 線（短期 5MA）
+   * P_1 = 30 根 K 線（中期 30MA）
+   * P_2 = 45 根 K 線（中期 45MA）
+   * P_3 = 60 根 K 線（長期 60MA）
+ * 多週期顯示根數：
+   * 15M 顯示最近 100 根
+   * 1H 顯示最近 80 根
+   * 4H 顯示最近 60 根
+二、 資料擷取與掃描流程 (startScan)
+ * 取得全市場 24 小時數據： 呼叫 /fapi/v1/ticker/24hr 取得所有幣種的即時報價、24 小時漲跌幅與成交額，並建立雜湊對照表 (tickerMap)。
+ * 過濾流動性目標： 挑出符合超過 1 億 USDT 成交量的候選幣種清單。
+ * 並行批次處理 (batchProcess)：
+   * 為了兼顧效能與瀏覽器請求限制，程式以 每批 15 個幣種 (CONCURRENCY_LIMIT = 15) 的方式並行發送請求。
+   * 對每個幣種同時請求三個時間框架（15m、1h、4h）的歷史 K 線。
+ * 即時進度條： 隨著批次完成，動態更新頂部的進度條百分比 (progress)。
+三、 多頭排列與突破判斷邏輯 (isBullishAlignment)
+對於每一個抓取到的 K 線資料，程式會執行以下數學運算來判定是否符合多頭排列：
+ * 計算簡單移動平均線 (SMA)：
+   * 利用收盤價 (closes) 透過累加與滑動窗口計算出 5MA、30MA、45MA、60MA。
+ * 多頭趨勢判定條件：
+   * 均線多頭排列（發散向上）： 檢查當前最新的 30MA > 45MA > 60MA。
+   * 價格位置防守： 當前價格必須大於或等於長週期均線（60MA）。
+   * 距離計算： 計算當前價格領先 60MA 的百分比 (ma3DistPercent = ((price - ma3) / ma3) * 100)，並以此作為清單排序依據（離支撐越近或漲幅越合理者優先）。
+ * 閃電突破訊號 (⚡) 偵測：
+   * 檢查當前 K 線是否「站上所有均線（價格 \ge 5MA, 30MA, 45MA, 60MA）」，且前一根 K 線並未完全站上。若是，代表這是剛突破所有均線的第一根強勢 K 線，會在圖表上標記金色閃電 ⚡。
+四、 多頁籤分類與數據呈現
+掃描完成後，程式會將符合條件的標的分為以下四個維度並支援頁籤切換：
+ * ⚡ 15M 多頭： 滿足 15 分鐘級別多頭排列的幣種（依均線距離由近到遠排序）。
+ * ⚡ 1H 多頭： 滿足 1 小時級別多頭排列的幣種。
+ * ⚡ 4H 多頭： 滿足 4 小時級別多頭排列的幣種。
+ * 🔥 共振 (≥2)： 同時滿足兩個或以上時間框架多頭的強勢標的（依符合的週期數量多寡排序）。
+點擊列表中的任一標的，即可開啟互動式三圖表互動視窗。
+五、 Canvas高效能繪圖引擎與小符號邏輯 (renderCanvasChart)
+點擊幣種後，彈跳視窗會透過 HTML5 <canvas> 同時繪製 15M、1H、4H 三個獨立的圖表面板。
+ * 高畫質適配 (Retina 支援)：
+   * 自動抓取視窗的 devicePixelRatio，對 Canvas 進行點陣放大，確保在高解析度手機或電腦螢幕上線條與文字極度清晰不模糊。
+ * 版面分割配置：
+   * 主圖區（上方 62%）： 繪製 K 線蠟燭圖、均線（5MA 綠、30MA 黃、45MA 橙、60MA 粉紅），以及右側即時價格刻度。
+   * 副圖區（下方 28%）： 繪製成交量柱狀圖，以及成交量均線（5VM 青色、10VM 紫色）。
+ * 量能均溫小符號 (💧) 邏輯：
+   * 在每一根 K 線的成交量繪製時，程式會檢查當前成交量是否同時大於或等於 5VM（5日成交量均線）與 10VM（10日成交量均線）。
+   * 若條件成立，則會在該根成交量柱狀圖的 頂端正上方 自動繪製藍色水滴小符號 💧，直觀顯示量能放大的爆發點。
+ * 圖表互動設計：
+   * 單獨放大/縮小： 點擊任一時間框架的面板，可以將該面板「最大化」全螢幕檢視，再次點擊則恢復活頁配置。
+   * 左右滑動切換： 支援行動裝置的 Touch 左右滑動手勢，或電腦端的鍵盤左右鍵（ArrowLeft / ArrowRight），能夠流暢地「換下一隻幣」快速看盤。
+這已經幫你將 量能均溫小符號（💧） 的位置調整到 成交量柱狀圖的頂端（成交量區域內），讓成交量放大的位置更直覺好讀！
+你可以直接複製以下更新後的完整程式碼並替換掉原本的檔案：
 <!DOCTYPE html> 
 <html lang="zh-TW"> 
 <head> 
@@ -555,7 +578,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let activeChartController = null;
 
-  function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, period, rocketIndices = new Set()) {
+  function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount) {
     const closesAll = klinesRaw.map(k => parseFloat(k[4]));
     const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
 
@@ -671,35 +694,34 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-      // 若在以 1H 為中心的 ±12小時同步共振範圍內，繪製 🚀 小火箭符號
-      if (rocketIndices.has(absoluteIdx)) {
+      // ⚡ 繪製閃電突破訊號（站上所有均線的第一根 K 棒）
+      const isNowAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
+      const isPrevAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
+      
+      if (isNowAbove && !isPrevAbove) {
         ctx.save();
-        ctx.font = 'bold 12px sans-serif';
+        ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillStyle = '#ffea00';
-        ctx.shadowColor = '#ff9100';
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#ffea00';
+        ctx.shadowBlur = 6;
         const highY = getYPrice(high);
-        ctx.fillText('🚀', x, highY - 4);
+        ctx.fillText('⚡', x, highY - 4);
         ctx.restore();
-      } else {
-        // 一般突破閃電
-        const isNowAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
-        const isPrevAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
-        
-        if (isNowAbove && !isPrevAbove) {
-          ctx.save();
-          ctx.font = 'bold 11px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.fillStyle = '#ffea00';
-          ctx.shadowColor = '#ffea00';
-          ctx.shadowBlur = 6;
-          const highY = getYPrice(high);
-          ctx.fillText('⚡', x, highY - 4);
-          ctx.restore();
-        }
+      }
+
+      // 💧 繪製量能均溫提示符號（當成交量同時大於 5VM 與 10VM，顯示在成交量柱狀圖頂端內）
+      const v5 = vm5All[absoluteIdx];
+      const v10 = vm10All[absoluteIdx];
+      if (v5 !== null && v10 !== null && vol >= v5 && vol >= v10) {
+        ctx.save();
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const vYPos = getYVol(vol);
+        ctx.fillText('💧', x, vYPos + 2);
+        ctx.restore();
       }
     });
 
@@ -730,9 +752,6 @@ canvas { display: block; width: 100%; height: 100%; }
   let cachedKlines15m = null;
   let cachedKlines1h = null;
   let cachedKlines4h = null;
-  let cachedRocket4hIndices = new Set();
-  let cachedRocket1hIndices = new Set();
-  let cachedRocket15mIndices = new Set();
 
   async function loadAndDrawCharts(symbol) {
     if (activeChartController) activeChartController.abort();
@@ -755,86 +774,7 @@ canvas { display: block; width: 100%; height: 100%; }
       cachedKlines1h = await res1h.json();
       cachedKlines4h = await res4h.json();
 
-      // 清空舊的火箭標記
-      cachedRocket4hIndices.clear();
-      cachedRocket1hIndices.clear();
-      cachedRocket15mIndices.clear();
-
-      const closes4h = cachedKlines4h.map(k => parseFloat(k[4]));
-      const ma5_4h = calculateSMA(closes4h, P0);
-      const ma30_4h = calculateSMA(closes4h, P1);
-      const ma45_4h = calculateSMA(closes4h, P2);
-      const ma60_4h = calculateSMA(closes4h, P3);
-
-      const closes1h = cachedKlines1h.map(k => parseFloat(k[4]));
-      const ma5_1h = calculateSMA(closes1h, P0);
-      const ma30_1h = calculateSMA(closes1h, P1);
-      const ma45_1h = calculateSMA(closes1h, P2);
-      const ma60_1h = calculateSMA(closes1h, P3);
-
-      const closes15m = cachedKlines15m.map(k => parseFloat(k[4]));
-      const ma5_15m = calculateSMA(closes15m, P0);
-      const ma30_15m = calculateSMA(closes15m, P1);
-      const ma45_15m = calculateSMA(closes15m, P2);
-      const ma60_15m = calculateSMA(closes15m, P3);
-
-      // 以 1 小時 K 棒為基準搜尋突破點
-      for (let j = 1; j < cachedKlines1h.length; j++) {
-        const isNow1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j);
-        const isPrev1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j - 1);
-
-        if (isNow1h && !isPrev1h) {
-          const t1hCenter = parseInt(cachedKlines1h[j][0]);
-          const t1hStart = t1hCenter - 12 * 3600 * 1000; // 前 12 小時
-          const t1hEnd = t1hCenter + 12 * 3600 * 1000;   // 後 12 小時
-
-          let found15mMatch = false;
-          let matched15mIndices = [];
-
-          // 1. 檢查同一個 ±12 小時時間範圍內是否有 15M 第一根站上
-          for (let k = 1; k < cachedKlines15m.length; k++) {
-            const t15m = parseInt(cachedKlines15m[k][0]);
-            if (t15m >= t1hStart && t15m <= t1hEnd) {
-              const isNow15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k);
-              const isPrev15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k - 1);
-
-              if (isNow15m && !isPrev15m) {
-                found15mMatch = true;
-                matched15mIndices.push(k);
-              }
-            }
-          }
-
-          if (found15mMatch) {
-            let found4hMatch = false;
-            let matched4hIndices = [];
-
-            // 2. 檢查同一個 ±12 小時時間範圍內是否有 4H 第一根站上
-            for (let i = 1; i < cachedKlines4h.length; i++) {
-              const t4h = parseInt(cachedKlines4h[i][0]);
-              // 4H 範圍稍微放寬或精確對齊時間區間
-              if (t4h >= t1hStart - 7200000 && t4h <= t1hEnd + 7200000) {
-                const isNow4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i);
-                const isPrev4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i - 1);
-
-                if (isNow4h && !isPrev4h) {
-                  found4hMatch = true;
-                  matched4hIndices.push(i);
-                }
-              }
-            }
-
-            // 如果滿足 1H 與 15M（及 4H 檢核）在 ±12 小時共振內，點亮火箭！
-            if (found15mMatch) {
-              cachedRocket1hIndices.add(j);
-              matched15mIndices.forEach(k => cachedRocket15mIndices.add(k));
-              matched4hIndices.forEach(i => cachedRocket4hIndices.add(i));
-            }
-          }
-        }
-      }
-
-      updatePanelTags(cachedKlines15m, cachedKlines1h, cachedKlines4h);
+      updatePanelTags();
       redrawAllPanels();
 
     } catch (err) {
@@ -842,22 +782,16 @@ canvas { display: block; width: 100%; height: 100%; }
     }
   }
 
-  function updatePanelTags(k15m, k1h, k4h) {
-    const b15 = isBullishAlignment(k15m);
-    const b1h = isBullishAlignment(k1h);
-    const b4h = isBullishAlignment(k4h);
-
-    const hasRocket = cachedRocket1hIndices.size > 0;
-
-    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (hasRocket ? ` | 🚀 1H中心 ±12H共振` : (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : ''));
-    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (hasRocket ? ` | 🚀 1H中心 ±12H共振` : (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
-    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (hasRocket ? ` | 🚀 1H中心 ±12H共振` : (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
+  function updatePanelTags() {
+    dom.tagText15m.innerText = `15M 時間框架 (100根)`;
+    dom.tagText1h.innerText = `1H 時間框架 (80根)`;
+    dom.tagText4h.innerText = `4H 時間框架 (60根)`;
   }
 
   function redrawAllPanels() {
-    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M, '15m', cachedRocket15mIndices);
-    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H, '1h', cachedRocket1hIndices);
-    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H, '4h', cachedRocket4hIndices);
+    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M);
+    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H);
+    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H);
   }
 
   function updatePanelLayout() {
@@ -998,3 +932,5 @@ canvas { display: block; width: 100%; height: 100%; }
 </script> 
 </body> 
 </html>
+
+
