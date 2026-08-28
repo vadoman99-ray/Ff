@@ -639,7 +639,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-      // 若在以 1H 為中心的 ±12小時同步共振範圍內，繪製 🚀 小火箭符號
+      // 若在以 4H 為中心 ±4小時同步共振範圍內，繪製 🚀 小火箭符號
       if (rocketIndices.has(absoluteIdx)) {
         ctx.save();
         ctx.font = 'bold 12px sans-serif';
@@ -746,58 +746,51 @@ canvas { display: block; width: 100%; height: 100%; }
       const ma45_15m = calculateSMA(closes15m, P2);
       const ma60_15m = calculateSMA(closes15m, P3);
 
-      // 以 1 小時 K 棒為基準搜尋突破點
-      for (let j = 1; j < cachedKlines1h.length; j++) {
-        const isNow1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j);
-        const isPrev1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j - 1);
+      // 🚀 以 4H 站上所有均線的第一根突破點為絕對核心基準
+      for (let i = 1; i < cachedKlines4h.length; i++) {
+        const isNow4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i);
+        const isPrev4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i - 1);
 
-        if (isNow1h && !isPrev1h) {
-          const t1hCenter = parseInt(cachedKlines1h[j][0]);
-          const t1hStart = t1hCenter - 12 * 3600 * 1000; // 前 12 小時
-          const t1hEnd = t1hCenter + 12 * 3600 * 1000;   // 後 12 小時
+        if (isNow4h && !isPrev4h) {
+          const t4hCenter = parseInt(cachedKlines4h[i][0]);
+          
+          // 💡 以該根 4H 時間為中心，前後各 4 小時的毫秒數
+          const windowOffset = 4 * 3600 * 1000;
+          const t4hStart = t4hCenter - windowOffset;
+          const t4hEnd = t4hCenter + windowOffset + 14400000; // 加上該根 4H 本身的 4 小時長度
 
-          let found15mMatch = false;
+          let matched1hIndices = [];
           let matched15mIndices = [];
 
-          // 1. 檢查同一個 ±12 小時時間範圍內是否有 15M 第一根站上
+          // 1. 檢查 4H 突破點前後 4 小時內是否有 1H 突破
+          for (let j = 1; j < cachedKlines1h.length; j++) {
+            const t1h = parseInt(cachedKlines1h[j][0]);
+            if (t1h >= t4hStart && t1h <= t4hEnd) {
+              const isNow1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j);
+              const isPrev1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j - 1);
+              if (isNow1h && !isPrev1h) {
+                matched1hIndices.push(j);
+              }
+            }
+          }
+
+          // 2. 檢查 4H 突破點前後 4 小時內是否有 15M 突破
           for (let k = 1; k < cachedKlines15m.length; k++) {
             const t15m = parseInt(cachedKlines15m[k][0]);
-            if (t15m >= t1hStart && t15m <= t1hEnd) {
+            if (t15m >= t4hStart && t15m <= t4hEnd) {
               const isNow15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k);
               const isPrev15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k - 1);
-
               if (isNow15m && !isPrev15m) {
-                found15mMatch = true;
                 matched15mIndices.push(k);
               }
             }
           }
 
-          if (found15mMatch) {
-            let found4hMatch = false;
-            let matched4hIndices = [];
-
-            // 2. 檢查同一個 ±12 小時時間範圍內是否有 4H 第一根站上
-            for (let i = 1; i < cachedKlines4h.length; i++) {
-              const t4h = parseInt(cachedKlines4h[i][0]);
-              // 4H 範圍稍微放寬或精確對齊時間區間
-              if (t4h >= t1hStart - 7200000 && t4h <= t1hEnd + 7200000) {
-                const isNow4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i);
-                const isPrev4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i - 1);
-
-                if (isNow4h && !isPrev4h) {
-                  found4hMatch = true;
-                  matched4hIndices.push(i);
-                }
-              }
-            }
-
-            // 如果滿足 1H 與 15M（及 4H 檢核）在 ±12 小時共振內，點亮火箭！
-            if (found15mMatch) {
-              cachedRocket1hIndices.add(j);
-              matched15mIndices.forEach(k => cachedRocket15mIndices.add(k));
-              matched4hIndices.forEach(i => cachedRocket4hIndices.add(i));
-            }
+          // 條件達成：4H 領頭突破，且 1H 與 15M 在前後 4 小時的範圍內呼應，點亮火箭！
+          if (matched1hIndices.length > 0 && matched15mIndices.length > 0) {
+            cachedRocket4hIndices.add(i);
+            matched1hIndices.forEach(j => cachedRocket1hIndices.add(j));
+            matched15mIndices.forEach(k => cachedRocket15mIndices.add(k));
           }
         }
       }
@@ -811,15 +804,11 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function updatePanelTags(k15m, k1h, k4h) {
-    const b15 = isBullishAlignment(k15m);
-    const b1h = isBullishAlignment(k1h);
-    const b4h = isBullishAlignment(k4h);
+    const hasRocket = cachedRocket4hIndices.size > 0;
 
-    const hasRocket = cachedRocket1hIndices.size > 0;
-
-    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (hasRocket ? ` | 🚀 1H中心 ±12H共振` : (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : ''));
-    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (hasRocket ? ` | 🚀 1H中心 ±12H共振` : (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
-    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (hasRocket ? ` | 🚀 1H中心 ±12H共振` : (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
+    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (hasRocket ? ` | 🚀 4H±4H 同步共振` : '');
+    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (hasRocket ? ` | 🚀 4H±4H 同步共振` : '');
+    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (hasRocket ? ` | 🚀 領頭 4H 突破點` : '');
   }
 
   function redrawAllPanels() {
