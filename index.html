@@ -639,7 +639,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-      // 若在 15M 突破點落在 1H 範圍內共振，繪製 🚀 小火箭符號
+      // 若符合雙重巢狀共振，繪製 🚀 小火箭符號
       if (rocketIndices.has(absoluteIdx)) {
         ctx.save();
         ctx.font = 'bold 12px sans-serif';
@@ -745,40 +745,42 @@ canvas { display: block; width: 100%; height: 100%; }
       const ma45_15m = calculateSMA(closes15m, P2);
       const ma60_15m = calculateSMA(closes15m, P3);
 
-      // 以 15M 的「第一根站上所有均線」為基準，檢查是否落在某根 1H 的時間範圍內，且該 1H 同時符合突破
-      for (let k = 1; k < cachedKlines15m.length; k++) {
-        const isNow15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k);
-        const isPrev15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k - 1);
+      // 嚴格雙重包含邏輯：
+      // 1. 找出 4H 突破點
+      for (let i = 1; i < cachedKlines4h.length; i++) {
+        const isNow4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i);
+        const isPrev4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i - 1);
 
-        if (isNow15m && !isPrev15m) {
-          const t15m = parseInt(cachedKlines15m[k][0]);
+        if (isNow4h && !isPrev4h) {
+          const t4hStart = parseInt(cachedKlines4h[i][0]);
+          const t4hEnd = t4hStart + 4 * 3600 * 1000;
 
-          // 尋找包含此 15M 時間點的 1H 棒次 (1H 區間為 [openTime, openTime + 3600000])
+          // 2. 尋找落在此 4H 範圍內的 1H 突破點
           for (let j = 1; j < cachedKlines1h.length; j++) {
             const t1hStart = parseInt(cachedKlines1h[j][0]);
             const t1hEnd = t1hStart + 3600 * 1000;
 
-            if (t15m >= t1hStart && t15m < t1hEnd) {
+            if (t1hStart >= t4hStart && t1hStart < t4hEnd) {
               const isNow1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j);
               const isPrev1h = checkAboveAllMAsAtIndex(closes1h, ma5_1h, ma30_1h, ma45_1h, ma60_1h, j - 1);
 
               if (isNow1h && !isPrev1h) {
-                // 15M 突破點落在符合突破的 1H 範圍內！檢查 4H 是否也符合
-                for (let i = 1; i < cachedKlines4h.length; i++) {
-                  const t4hStart = parseInt(cachedKlines4h[i][0]);
-                  const t4hEnd = t4hStart + 4 * 3600 * 1000;
-                  if (t15m >= t4hStart && t15m < t4hEnd) {
-                    const isNow4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i);
-                    const isPrev4h = checkAboveAllMAsAtIndex(closes4h, ma5_4h, ma30_4h, ma45_4h, ma60_4h, i - 1);
-                    if (isNow4h && !isPrev4h) {
+                // 3. 尋找落在此 1H 範圍內的 15M 突破點
+                for (let k = 1; k < cachedKlines15m.length; k++) {
+                  const t15m = parseInt(cachedKlines15m[k][0]);
+
+                  if (t15m >= t1hStart && t15m < t1hEnd) {
+                    const isNow15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k);
+                    const isPrev15m = checkAboveAllMAsAtIndex(closes15m, ma5_15m, ma30_15m, ma45_15m, ma60_15m, k - 1);
+
+                    if (isNow15m && !isPrev15m) {
+                      // 三者符合巢狀階層！點亮對應火箭
                       cachedRocket4hIndices.add(i);
+                      cachedRocket1hIndices.add(j);
+                      cachedRocket15mIndices.add(k);
                     }
                   }
                 }
-
-                cachedRocket15mIndices.add(k);
-                cachedRocket1hIndices.add(j);
-                break;
               }
             }
           }
@@ -796,13 +798,13 @@ canvas { display: block; width: 100%; height: 100%; }
   function updatePanelTags(k15m, k1h, k4h) {
     const b15 = isBullishAlignment(k15m);
     const b1h = isBullishAlignment(k1h);
-    const b4h = isBullishAlignment(k4h);
+    const b4h = isBullishAlignment(k1h);
 
     const hasRocket = cachedRocket15mIndices.size > 0;
 
-    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (hasRocket ? ` | 🚀 15M在1H範圍內共振` : (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : ''));
-    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (hasRocket ? ` | 🚀 15M在1H範圍內共振` : (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
-    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (hasRocket ? ` | 🚀 15M在1H範圍內共振` : (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
+    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (hasRocket ? ` | 🚀 15M在1H、1H在4H內共振` : (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : ''));
+    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (hasRocket ? ` | 🚀 15M在1H、1H在4H內共振` : (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
+    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (hasRocket ? ` | 🚀 15M在1H、1H在4H內共振` : (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上` : ''));
   }
 
   function redrawAllPanels() {
