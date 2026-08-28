@@ -305,6 +305,18 @@ canvas { display: block; width: 100%; height: 100%; }
     return ma; 
   } 
 
+  // 檢查單一根K棒是否同時站上所有均線 (5MA, 30MA, 45MA, 60MA)
+  function checkAboveAllMAsAtIndex(closes, ma5, ma30, ma45, ma60, idx) {
+    if (idx < 0 || idx >= closes.length) return false;
+    const price = closes[idx];
+    const m5 = ma5[idx], m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
+    
+    return (m5 !== null && price >= m5) && 
+           (m30 !== null && price >= m30) && 
+           (m45 !== null && price >= m45) && 
+           (m60 !== null && price >= m60);
+  }
+
   function isBullishAlignment(klinesRaw) {
     const totalLen = klinesRaw.length;
     if (totalLen < P3) return null;
@@ -312,20 +324,26 @@ canvas { display: block; width: 100%; height: 100%; }
     const closes = klinesRaw.map(k => parseFloat(k[4]));
     const price = closes[totalLen - 1];
 
-    const ma5 = calculateSMA(closes, P0)[totalLen - 1];
-    const ma1 = calculateSMA(closes, P1)[totalLen - 1];
-    const ma2 = calculateSMA(closes, P2)[totalLen - 1];
-    const ma3 = calculateSMA(closes, P3)[totalLen - 1];
+    const ma5Arr = calculateSMA(closes, P0);
+    const ma1Arr = calculateSMA(closes, P1);
+    const ma2Arr = calculateSMA(closes, P2);
+    const ma3Arr = calculateSMA(closes, P3);
+
+    const ma1 = ma1Arr[totalLen - 1];
+    const ma2 = ma2Arr[totalLen - 1];
+    const ma3 = ma3Arr[totalLen - 1];
 
     if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
       const ma3DistPercent = ((price - ma3) / ma3) * 100;
-      // 檢查是否站上所有均線 (5MA, 30MA, 45MA, 60MA)
-      const isAboveAllMAs = (ma5 !== null && price >= ma5) && 
-                            (ma1 !== null && price >= ma1) && 
-                            (ma2 !== null && price >= ma2) && 
-                            (ma3 !== null && price >= ma3);
+      
+      // 當前最新一根是否站上所有均線
+      const isAboveAllNow = checkAboveAllMAsAtIndex(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
+      
+      // 判定是否為「第一根」站上所有均線：當前最新一根站上，但上一根（倒數第二根）未完全站上所有均線
+      const isAboveAllPrev = checkAboveAllMAsAtIndex(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
+      const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
 
-      return { price, ma3DistPercent, isAboveAllMAs };
+      return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
     }
     return null;
   }
@@ -523,6 +541,8 @@ canvas { display: block; width: 100%; height: 100%; }
     const vm10All = calculateSMA(volumesAll, 10);
 
     const actualShowCount = Math.min(showCount, klinesRaw.length);
+    const showStartIndex = klinesRaw.length - actualShowCount;
+    
     const showK = klinesRaw.slice(-actualShowCount);
     
     const showMA5 = ma5All.slice(-actualShowCount);
@@ -543,7 +563,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const width = rect.width;
     const height = rect.height;
 
-    const padding = { top: 18, bottom: 8, left: 10, right: 65 };
+    const padding = { top: 24, bottom: 8, left: 10, right: 65 };
     const totalH = height - padding.top - padding.bottom;
     
     const priceH = totalH * 0.62;
@@ -622,6 +642,24 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.4)' : 'rgba(255, 42, 109, 0.4)';
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
+
+      // 檢查是否為「第一根站上所有均線」的K棒，若是則在該K棒上方繪製 ⚡ 符號
+      const absoluteIdx = showStartIndex + i;
+      const isNowAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
+      const isPrevAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
+      
+      if (isNowAbove && !isPrevAbove) {
+        ctx.save();
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#ffea00'; // 醒目黃色閃電
+        ctx.shadowColor = '#ffea00';
+        ctx.shadowBlur = 6;
+        const highY = getYPrice(high);
+        ctx.fillText('⚡', x, highY - 4);
+        ctx.restore();
+      }
     });
 
     const drawLine = (dataArray, color, getYFunc, width = 1.2) => {
@@ -673,9 +711,7 @@ canvas { display: block; width: 100%; height: 100%; }
       cachedKlines1h = await res1h.json();
       cachedKlines4h = await res4h.json();
 
-      // 更新時間框架標籤文字（包含是否站上所有均線）
       updatePanelTags(cachedKlines15m, cachedKlines1h, cachedKlines4h);
-
       redrawAllPanels();
 
     } catch (err) {
@@ -688,9 +724,9 @@ canvas { display: block; width: 100%; height: 100%; }
     const b1h = isBullishAlignment(k1h);
     const b4h = isBullishAlignment(k4h);
 
-    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (b15 && b15.isAboveAllMAs ? ` | ⚡ 站上所有均線` : '');
-    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (b1h && b1h.isAboveAllMAs ? ` | ⚡ 站上所有均線` : '');
-    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (b4h && b4h.isAboveAllMAs ? ` | ⚡ 站上所有均線` : '');
+    dom.tagText15m.innerText = `15M 時間框架 (100根)` + (b15 && b15.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : (b15 && b15.isAboveAllMAs ? ` | 站上所有均線` : ''));
+    dom.tagText1h.innerText = `1H 時間框架 (80根)` + (b1h && b1h.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : (b1h && b1h.isAboveAllMAs ? ` | 站上所有均線` : ''));
+    dom.tagText4h.innerText = `4H 時間框架 (60根)` + (b4h && b4h.isFirstBarAboveAll ? ` | ⚡ 第一根站上所有均線` : (b4h && b4h.isAboveAllMAs ? ` | 站上所有均線` : ''));
   }
 
   function redrawAllPanels() {
