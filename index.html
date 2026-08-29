@@ -436,10 +436,12 @@ canvas { display: block; width: 100%; height: 100%; }
     results4H = allMatches.filter(m => m.bull4h);
     resultsMulti = allMatches.filter(m => m.matchCount >= 2);
 
-    results15M.sort((a, b) => a.bull15m.ma3DistPercent - b.bull15m.ma3DistPercent);
-    results1H.sort((a, b) => a.bull1h.ma3DistPercent - b.bull1h.ma3DistPercent);
-    results4H.sort((a, b) => a.bull4h.ma3DistPercent - b.bull4h.ma3DistPercent);
-    resultsMulti.sort((a, b) => b.matchCount - a.matchCount);
+    // 依 24小時漲幅由大到小排序 (priceChange24h 降冪)
+    const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
+    results15M.sort(sortByChange);
+    results1H.sort(sortByChange);
+    results4H.sort(sortByChange);
+    resultsMulti.sort(sortByChange);
 
     dom.count15m.innerText = results15M.length;
     dom.count1h.innerText = results1H.length;
