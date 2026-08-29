@@ -217,11 +217,11 @@ canvas { display: block; width: 100%; height: 100%; }
 
     <div class="charts-wrapper" id="chartsWrapper">
       <div class="chart-panel" id="wrapper15m" data-period="15m">
-        <span class="panel-tag" id="tagText15m">15M 時間框架 (100根)</span>
+        <span class="panel-tag" id="tagText15m">15M 時間框架 (240根)</span>
         <canvas id="klineCanvas15m"></canvas>
       </div>
       <div class="chart-panel" id="wrapper1h" data-period="1h">
-        <span class="panel-tag" id="tagText1h">1H 時間框架 (80根)</span>
+        <span class="panel-tag" id="tagText1h">1H 時間框架 (120根)</span>
         <canvas id="klineCanvas1h"></canvas>
       </div>
       <div class="chart-panel" id="wrapper4h" data-period="4h">
@@ -239,11 +239,13 @@ canvas { display: block; width: 100%; height: 100%; }
   const MIN_VOLUME = 100000000;
   const CONCURRENCY_LIMIT = 15;
 
-  const COUNT_15M = 100;
-  const COUNT_1H = 80;
+  const COUNT_15M = 240;
+  const COUNT_1H = 120;
   const COUNT_4H = 60;
 
-  const FETCH_LIMIT = P3 + 60; 
+  const FETCH_LIMIT_15M = COUNT_15M + P3;
+  const FETCH_LIMIT_1H = COUNT_1H + P3;
+  const FETCH_LIMIT_4H = COUNT_4H + P3;
 
   let results15M = [];
   let results1H = []; 
@@ -346,9 +348,9 @@ canvas { display: block; width: 100%; height: 100%; }
   async function fetchSymbolDetailsData(symbol, signal) { 
     try {
       const [res15m, res1h, res4h] = await Promise.all([
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT}`, { signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT}`, { signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT}`, { signal })
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal })
       ]);
 
       if (!res15m.ok || !res1h.ok || !res4h.ok) return null;
@@ -640,7 +642,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-      // ⚡ 繪製閃電突破訊號（站上所有均線的第一根 K 棒）
+      // ⚡ 閃電突破訊號
       const isNowAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
       const isPrevAbove = checkAboveAllMAsAtIndex(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
       
@@ -657,19 +659,19 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.restore();
       }
 
-      // ⭐ 繪製 5VM 反轉向上提示符號（極亮顯眼版）
+      // ⭐ 5VM 反轉向上提示符號（極亮顯眼版）
       const curVM5 = vm5All[absoluteIdx];
       const prevVM5 = vm5All[absoluteIdx - 1];
       const prev2VM5 = vm5All[absoluteIdx - 2];
       if (curVM5 !== null && prevVM5 !== null && prev2VM5 !== null) {
         if (curVM5 > prevVM5 && prevVM5 <= prev2VM5) {
           ctx.save();
-          ctx.font = 'bold 12px sans-serif'; // 加粗、加大字體
+          ctx.font = 'bold 12px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
-          ctx.fillStyle = '#ffff00';         // 超級亮眼螢光黃
-          ctx.shadowColor = '#ffff00';       // 強烈發光
-          ctx.shadowBlur = 10;               // 高度暈染發光
+          ctx.fillStyle = '#ffff00';
+          ctx.shadowColor = '#ffff00';
+          ctx.shadowBlur = 10;
           const vYPos = getYVol(vol);
           ctx.fillText('⭐', x, vYPos + 2);
           ctx.restore();
@@ -710,14 +712,10 @@ canvas { display: block; width: 100%; height: 100%; }
     activeChartController = new AbortController();
 
     try {
-      const limit15m = COUNT_15M + P3;
-      const limit1h = COUNT_1H + P3;
-      const limit4h = COUNT_4H + P3;
-
       const [res15m, res1h, res4h] = await Promise.all([
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${limit15m}`, { signal: activeChartController.signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${limit1h}`, { signal: activeChartController.signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${limit4h}`, { signal: activeChartController.signal })
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal: activeChartController.signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal: activeChartController.signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal: activeChartController.signal })
       ]);
 
       if (!res15m.ok || !res1h.ok || !res4h.ok) return;
@@ -735,9 +733,9 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function updatePanelTags() {
-    dom.tagText15m.innerText = `15M 時間框架 (100根)`;
-    dom.tagText1h.innerText = `1H 時間框架 (80根)`;
-    dom.tagText4h.innerText = `4H 時間框架 (60根)`;
+    dom.tagText15m.innerText = `15M 時間框架 (${COUNT_15M}根)`;
+    dom.tagText1h.innerText = `1H 時間框架 (${COUNT_1H}根)`;
+    dom.tagText4h.innerText = `4H 時間框架 (${COUNT_4H}根)`;
   }
 
   function redrawAllPanels() {
