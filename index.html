@@ -139,11 +139,8 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .charts-wrapper { flex: 1; width: 100%; height: 100%; display: flex; flex-direction: column; background: #060911; overflow: hidden; }
 .chart-panel { 
   flex: 1; width: 100%; position: relative; border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
-  transition: flex 0.25s ease, height 0.25s ease; cursor: pointer;
 }
 .chart-panel:last-child { border-bottom: none; }
-.chart-panel.minimized { flex: 0 0 0px !important; height: 0 !important; border-bottom: none; overflow: hidden; }
-.chart-panel.maximized { flex: 1 1 100% !important; height: 100% !important; }
 
 .panel-tag {
   position: absolute; top: 4px; left: 8px; z-index: 5;
@@ -217,11 +214,11 @@ canvas { display: block; width: 100%; height: 100%; }
 
     <div class="charts-wrapper" id="chartsWrapper">
       <div class="chart-panel" id="wrapper15m" data-period="15m">
-        <span class="panel-tag" id="tagText15m">15M 時間框架 (120根)</span>
+        <span class="panel-tag" id="tagText15m">15M 時間框架 (60根)</span>
         <canvas id="klineCanvas15m"></canvas>
       </div>
       <div class="chart-panel" id="wrapper1h" data-period="1h">
-        <span class="panel-tag" id="tagText1h">1H 時間框架 (80根)</span>
+        <span class="panel-tag" id="tagText1h">1H 時間框架 (60根)</span>
         <canvas id="klineCanvas1h"></canvas>
       </div>
       <div class="chart-panel" id="wrapper4h" data-period="4h">
@@ -239,8 +236,8 @@ canvas { display: block; width: 100%; height: 100%; }
   const MIN_VOLUME = 100000000;
   const CONCURRENCY_LIMIT = 15;
 
-  const COUNT_15M = 120;
-  const COUNT_1H = 80;
+  const COUNT_15M = 60;
+  const COUNT_1H = 60;
   const COUNT_4H = 60;
 
   const FETCH_LIMIT_15M = COUNT_15M + P3;
@@ -255,7 +252,6 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let tickerMap = new Map(); 
   let currentIndex = -1; 
-  let maximizedPeriod = null; 
 
   const dom = {
     scanBtn: document.getElementById('scanBtn'),
@@ -744,51 +740,11 @@ canvas { display: block; width: 100%; height: 100%; }
     if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H);
   }
 
-  function updatePanelLayout() {
-    [dom.wrapper15m, dom.wrapper1h, dom.wrapper4h].forEach(w => {
-      w.classList.remove('maximized', 'minimized');
-    });
-
-    if (maximizedPeriod === '15m') {
-      dom.wrapper15m.classList.add('maximized');
-      dom.wrapper1h.classList.add('minimized');
-      dom.wrapper4h.classList.add('minimized');
-    } else if (maximizedPeriod === '1h') {
-      dom.wrapper15m.classList.add('minimized');
-      dom.wrapper1h.classList.add('maximized');
-      dom.wrapper4h.classList.add('minimized');
-    } else if (maximizedPeriod === '4h') {
-      dom.wrapper15m.classList.add('minimized');
-      dom.wrapper1h.classList.add('minimized');
-      dom.wrapper4h.classList.add('maximized');
-    }
-
-    setTimeout(() => {
-      redrawAllPanels();
-    }, 50);
-  }
-
-  function handlePanelClick(period) {
-    if (maximizedPeriod === period) {
-      maximizedPeriod = null; 
-    } else {
-      maximizedPeriod = period; 
-    }
-    updatePanelLayout();
-  }
-
-  dom.wrapper15m.addEventListener('click', () => handlePanelClick('15m'));
-  dom.wrapper1h.addEventListener('click', () => handlePanelClick('1h'));
-  dom.wrapper4h.addEventListener('click', () => handlePanelClick('4h'));
-
   function openChartModal(index) {
     const currentList = getCurrentList();
     if (index < 0 || index >= currentList.length) return;
     currentIndex = index;
     const item = currentList[currentIndex];
-
-    maximizedPeriod = null; 
-    updatePanelLayout();
 
     dom.symbolRankTag.innerText = `#${currentIndex + 1}`;
     dom.symbolTitle.innerText = item.symbol;
@@ -805,7 +761,6 @@ canvas { display: block; width: 100%; height: 100%; }
     dom.chartModal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
     currentIndex = -1;
-    maximizedPeriod = null;
   }
 
   function navigateSymbol(direction) {
