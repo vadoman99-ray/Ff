@@ -657,16 +657,19 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.restore();
       }
 
-      // ⭐ 繪製 5VM 反轉向上提示符號（當前 5VM > 前一根 5VM 且 前一根 5VM <= 前兩根 5VM）
+      // ⭐ 繪製 5VM 反轉向上提示符號（極亮顯眼版）
       const curVM5 = vm5All[absoluteIdx];
       const prevVM5 = vm5All[absoluteIdx - 1];
       const prev2VM5 = vm5All[absoluteIdx - 2];
       if (curVM5 !== null && prevVM5 !== null && prev2VM5 !== null) {
         if (curVM5 > prevVM5 && prevVM5 <= prev2VM5) {
           ctx.save();
-          ctx.font = '10px sans-serif';
+          ctx.font = 'bold 12px sans-serif'; // 加粗、加大字體
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
+          ctx.fillStyle = '#ffff00';         // 超級亮眼螢光黃
+          ctx.shadowColor = '#ffff00';       // 強烈發光
+          ctx.shadowBlur = 10;               // 高度暈染發光
           const vYPos = getYVol(vol);
           ctx.fillText('⭐', x, vYPos + 2);
           ctx.restore();
