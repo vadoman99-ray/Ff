@@ -217,11 +217,11 @@ canvas { display: block; width: 100%; height: 100%; }
 
     <div class="charts-wrapper" id="chartsWrapper">
       <div class="chart-panel" id="wrapper15m" data-period="15m">
-        <span class="panel-tag" id="tagText15m">15M 時間框架 (180根)</span>
+        <span class="panel-tag" id="tagText15m">15M 時間框架 (120根)</span>
         <canvas id="klineCanvas15m"></canvas>
       </div>
       <div class="chart-panel" id="wrapper1h" data-period="1h">
-        <span class="panel-tag" id="tagText1h">1H 時間框架 (100根)</span>
+        <span class="panel-tag" id="tagText1h">1H 時間框架 (80根)</span>
         <canvas id="klineCanvas1h"></canvas>
       </div>
       <div class="chart-panel" id="wrapper4h" data-period="4h">
@@ -239,8 +239,8 @@ canvas { display: block; width: 100%; height: 100%; }
   const MIN_VOLUME = 100000000;
   const CONCURRENCY_LIMIT = 15;
 
-  const COUNT_15M = 180;
-  const COUNT_1H = 100;
+  const COUNT_15M = 120;
+  const COUNT_1H = 80;
   const COUNT_4H = 60;
 
   const FETCH_LIMIT_15M = COUNT_15M + P3;
