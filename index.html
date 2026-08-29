@@ -3,7 +3,7 @@
 <head> 
 <meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
-<title>⚡ 多週期多頭排列選股儀表板 (>1億USDT)</title> 
+<title>⚡ 多週期多頭排列儀表板 (>1億USDT)</title> 
 <style> 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap'); 
 :root { 
@@ -436,7 +436,6 @@ canvas { display: block; width: 100%; height: 100%; }
     results4H = allMatches.filter(m => m.bull4h);
     resultsMulti = allMatches.filter(m => m.matchCount >= 2);
 
-    // 依 24小時漲幅由大到小排序 (priceChange24h 降冪)
     const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
     results15M.sort(sortByChange);
     results1H.sort(sortByChange);
@@ -658,17 +657,20 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.restore();
       }
 
-      // 💧 繪製量能均溫提示符號（當成交量同時大於 5VM 與 10VM，顯示在成交量柱狀圖頂端內）
-      const v5 = vm5All[absoluteIdx];
-      const v10 = vm10All[absoluteIdx];
-      if (v5 !== null && v10 !== null && vol >= v5 && vol >= v10) {
-        ctx.save();
-        ctx.font = '9px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        const vYPos = getYVol(vol);
-        ctx.fillText('💧', x, vYPos + 2);
-        ctx.restore();
+      // ⭐ 繪製 5VM 反轉向上提示符號（當前 5VM > 前一根 5VM 且 前一根 5VM <= 前兩根 5VM）
+      const curVM5 = vm5All[absoluteIdx];
+      const prevVM5 = vm5All[absoluteIdx - 1];
+      const prev2VM5 = vm5All[absoluteIdx - 2];
+      if (curVM5 !== null && prevVM5 !== null && prev2VM5 !== null) {
+        if (curVM5 > prevVM5 && prevVM5 <= prev2VM5) {
+          ctx.save();
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          const vYPos = getYVol(vol);
+          ctx.fillText('⭐', x, vYPos + 2);
+          ctx.restore();
+        }
       }
     });
 
