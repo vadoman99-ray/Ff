@@ -208,7 +208,7 @@ canvas { display: block; width: 100%; height: 100%; }
         <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
         <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
         <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>5VM</div>
-        <div class="legend-item"><div class="legend-color" style="background:#9d4edd"></div>10VM</div>
+        <div class="legend-item"><div class="legend-color" style="background:#9d4edd"></div>20VM</div>
       </div>
       <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
     </div>
@@ -241,9 +241,11 @@ canvas { display: block; width: 100%; height: 100%; }
   const COUNT_1H = 120;
   const COUNT_4H = 60;
 
-  const FETCH_LIMIT_15M = COUNT_15M + P3;
-  const FETCH_LIMIT_1H = COUNT_1H + P3;
-  const FETCH_LIMIT_4H = COUNT_4H + P3;
+  // 確保 20VM 計算有足夠歷史數據
+  const MAX_VM_PERIOD = 20;
+  const FETCH_LIMIT_15M = COUNT_15M + Math.max(P3, MAX_VM_PERIOD);
+  const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, MAX_VM_PERIOD);
+  const FETCH_LIMIT_4H = COUNT_4H + Math.max(P3, MAX_VM_PERIOD);
 
   let results15M = [];
   let results1H = []; 
@@ -547,7 +549,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const ma60All = calculateSMA(closesAll, P3);
 
     const vm5All = calculateSMA(volumesAll, 5);
-    const vm10All = calculateSMA(volumesAll, 10);
+    const vm20All = calculateSMA(volumesAll, 20);
 
     const actualShowCount = Math.min(showCount, klinesRaw.length);
     const showStartIndex = klinesRaw.length - actualShowCount;
@@ -559,7 +561,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const showMA45 = ma45All.slice(-actualShowCount);
     const showMA60 = ma60All.slice(-actualShowCount);
     const showVM5 = vm5All.slice(-actualShowCount);
-    const showVM10 = vm10All.slice(-actualShowCount);
+    const showVM20 = vm20All.slice(-actualShowCount);
 
     const rect = wrapper.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
@@ -678,12 +680,17 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.restore();
       }
 
-      // 🌡 改成出現在成交量柱狀圖頂端
+      // 🌡 量能升溫訊號：改用 5VM > 20VM 判定（當前 5VM > 20VM 且前一根 5VM <= 前一根 20VM 的交叉瞬間）
       const curVM5 = vm5All[absoluteIdx];
+      const curVM20 = vm20All[absoluteIdx];
       const prevVM5 = vm5All[absoluteIdx - 1];
-      const prev2VM5 = vm5All[absoluteIdx - 2];
-      if (curVM5 !== null && prevVM5 !== null && prev2VM5 !== null) {
-        if (curVM5 > prevVM5 && prevVM5 <= prev2VM5) {
+      const prevVM20 = vm20All[absoluteIdx - 1];
+
+      if (curVM5 !== null && curVM20 !== null && prevVM5 !== null && prevVM20 !== null) {
+        const isNowGoldenCross = curVM5 > curVM20;
+        const isPrevGoldenCross = prevVM5 <= prevVM20;
+
+        if (isNowGoldenCross && isPrevGoldenCross) {
           ctx.save();
           ctx.font = 'bold 9px sans-serif';
           ctx.textAlign = 'center';
@@ -719,7 +726,7 @@ canvas { display: block; width: 100%; height: 100%; }
     drawLine(showMA60, '#ff007f', getYPrice);
 
     drawLine(showVM5, '#00f0ff', getYVol, 0.9);
-    drawLine(showVM10, '#9d4edd', getYVol, 0.9);
+    drawLine(showVM20, '#9d4edd', getYVol, 0.9);
   }
 
   let cachedKlines15m = null;
