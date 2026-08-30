@@ -94,33 +94,33 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .chart-modal {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
   background: rgba(4, 6, 14, 0.95); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  z-index: 1000; display: none; justify-content: center; align-items: center; padding: 8px;
+  z-index: 1000; display: none; justify-content: center; align-items: center; padding: 4px;
   overflow: hidden; touch-action: pan-y;
 }
 .chart-modal.active { display: flex; }
 .chart-box {
-  width: 100%; max-width: 1050px; height: 100%; max-height: 98vh; max-height: 98dvh; background: #0b0f19;
-  border: 1px solid rgba(0, 240, 255, 0.35); border-radius: 16px; overflow: hidden;
+  width: 100%; max-width: 1050px; height: 100%; max-height: 100vh; max-height: 100dvh; background: #0b0f19;
+  border: 1px solid rgba(0, 240, 255, 0.35); border-radius: 12px; overflow: hidden;
   display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(0, 240, 255, 0.2);
   position: relative; transition: transform 0.15s ease-out;
 }
 
 .chart-header {
-  padding: 8px 12px; background: #111726; display: flex; justify-content: space-between; align-items: center;
-  border-bottom: 1px solid rgba(255,255,255,0.08); gap: 6px; flex-shrink: 0; z-index: 2;
+  padding: 6px 10px; background: #111726; display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.08); gap: 4px; flex-shrink: 0; z-index: 2;
 }
 
 .header-title-group { display: flex; align-items: center; gap: 6px; }
-.symbol-title { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 800; color: #fff; }
-.symbol-rank-tag { font-size: 0.7rem; color: var(--manga-cyan); font-weight: 800; }
+.symbol-title { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 800; color: #fff; }
+.symbol-rank-tag { font-size: 0.65rem; color: var(--manga-cyan); font-weight: 800; }
 
-.legend-bar { display: flex; gap: 6px; font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
-.legend-item { display: flex; align-items: center; gap: 3px; }
-.legend-color { width: 6px; height: 6px; border-radius: 2px; }
+.legend-bar { display: flex; gap: 4px; font-size: 0.55rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 2px; }
+.legend-color { width: 5px; height: 5px; border-radius: 2px; }
 
 .close-btn {
   background: rgba(255,255,255,0.08); color: #a0aec0; border: 1px solid rgba(255,255,255,0.1); border-radius: 50%;
-  width: 28px; height: 28px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: background-color 0.15s ease; flex-shrink: 0;
 }
 .close-btn:hover { background: var(--manga-red); color: #fff; border-color: var(--manga-red); }
@@ -128,24 +128,25 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .nav-btn {
   position: absolute; top: 50%; transform: translateY(-50%);
   background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(0, 240, 255, 0.3); color: var(--manga-cyan);
-  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem; cursor: pointer; z-index: 10; backdrop-filter: blur(4px);
+  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; cursor: pointer; z-index: 10; backdrop-filter: blur(4px);
   transition: all 0.2s ease;
 }
 .nav-btn:hover { background: var(--manga-cyan); color: #000; box-shadow: 0 0 12px var(--manga-cyan); }
-.nav-btn.prev { left: 8px; }
-.nav-btn.next { right: 8px; }
+.nav-btn.prev { left: 4px; }
+.nav-btn.next { right: 4px; }
 
-.charts-wrapper { flex: 1; width: 100%; height: 100%; display: flex; flex-direction: column; background: #060911; overflow: hidden; }
+.charts-wrapper { flex: 1; width: 100%; display: flex; flex-direction: column; background: #060911; overflow: hidden; min-height: 0; }
 .chart-panel { 
   flex: 1; width: 100%; position: relative; border-bottom: 1px solid rgba(255, 255, 255, 0.08); 
+  min-height: 0;
 }
 .chart-panel:last-child { border-bottom: none; }
 
 .panel-tag {
-  position: absolute; top: 4px; left: 8px; z-index: 5;
-  font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 800;
-  padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,0.6); color: var(--manga-cyan);
+  position: absolute; top: 3px; left: 6px; z-index: 5;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; font-weight: 800;
+  padding: 1px 4px; border-radius: 3px; background: rgba(0,0,0,0.6); color: var(--manga-cyan);
   border: 1px solid rgba(0, 240, 255, 0.3); pointer-events: none;
 }
 canvas { display: block; width: 100%; height: 100%; }
@@ -153,10 +154,10 @@ canvas { display: block; width: 100%; height: 100%; }
 @media (max-width: 600px) {
   .chart-modal { padding: 0; }
   .chart-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
-  .chart-header { padding: 6px 10px; }
-  .symbol-title { font-size: 0.85rem; }
-  .legend-bar { font-size: 0.6rem; gap: 4px; }
-  .nav-btn { width: 32px; height: 32px; font-size: 1rem; opacity: 0.6; }
+  .chart-header { padding: 4px 8px; }
+  .symbol-title { font-size: 0.8rem; }
+  .legend-bar { font-size: 0.5rem; gap: 3px; }
+  .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
   .tab-btn { font-size: 0.65rem; padding: 6px 2px; }
 }
 </style> 
@@ -214,15 +215,15 @@ canvas { display: block; width: 100%; height: 100%; }
 
     <div class="charts-wrapper" id="chartsWrapper">
       <div class="chart-panel" id="wrapper15m" data-period="15m">
-        <span class="panel-tag" id="tagText15m">15M 時間框架 (240根)</span>
+        <span class="panel-tag" id="tagText15m">15M (240)</span>
         <canvas id="klineCanvas15m"></canvas>
       </div>
       <div class="chart-panel" id="wrapper1h" data-period="1h">
-        <span class="panel-tag" id="tagText1h">1H 時間框架 (120根)</span>
+        <span class="panel-tag" id="tagText1h">1H (120)</span>
         <canvas id="klineCanvas1h"></canvas>
       </div>
       <div class="chart-panel" id="wrapper4h" data-period="4h">
-        <span class="panel-tag" id="tagText4h">4H 時間框架 (60根)</span>
+        <span class="panel-tag" id="tagText4h">4H (60)</span>
         <canvas id="klineCanvas4h"></canvas>
       </div>
     </div>
@@ -308,23 +309,19 @@ canvas { display: block; width: 100%; height: 100%; }
     return yi.toFixed(2) + '億';
   }
 
-  // 15M 與 1H 條件：收盤在均線 30, 45, 60 以上
   function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
     if (idx < 0 || idx >= closes.length) return false;
     const price = closes[idx];
     const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
-    
     return (m30 !== null && price >= m30) && 
            (m45 !== null && price >= m45) && 
            (m60 !== null && price >= m60);
   }
 
-  // 4H 條件：收盤在均線 5, 30, 45, 60 以上
   function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
     if (idx < 0 || idx >= closes.length) return false;
     const price = closes[idx];
     const m5 = ma5[idx], m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
-    
     return (m5 !== null && price >= m5) &&
            (m30 !== null && price >= m30) && 
            (m45 !== null && price >= m45) && 
@@ -406,7 +403,6 @@ canvas { display: block; width: 100%; height: 100%; }
   async function batchProcess(items, limit, fn, onProgress) {
     const results = [];
     let completed = 0;
-    
     for (let i = 0; i < items.length; i += limit) {
       const chunk = items.slice(i, i + limit);
       const chunkResults = await Promise.all(chunk.map(item => fn(item)));
@@ -576,12 +572,12 @@ canvas { display: block; width: 100%; height: 100%; }
     const width = rect.width;
     const height = rect.height;
 
-    const padding = { top: 24, bottom: 8, left: 10, right: 65 };
+    const padding = { top: 18, bottom: 4, left: 6, right: 55 };
     const totalH = height - padding.top - padding.bottom;
     
-    const priceH = totalH * 0.62;
-    const volH = totalH * 0.28;
-    const volTop = padding.top + priceH + totalH * 0.08;
+    const priceH = totalH * 0.65;
+    const volH = totalH * 0.25;
+    const volTop = padding.top + priceH + totalH * 0.10;
 
     const chartW = width - padding.left - padding.right;
 
@@ -605,13 +601,13 @@ canvas { display: block; width: 100%; height: 100%; }
 
     ctx.clearRect(0, 0, width, height);
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.fillStyle = '#64748b';
-    ctx.font = '9px JetBrains Mono';
+    ctx.font = '8px JetBrains Mono';
     ctx.textAlign = 'left';
     ctx.lineWidth = 1;
 
-    const gridLines = 2;
+    const gridLines = 1;
     for (let i = 0; i <= gridLines; i++) {
       const y = padding.top + (priceH / gridLines) * i;
       const pVal = maxP - (priceRange / gridLines) * i;
@@ -619,7 +615,7 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.moveTo(padding.left, y);
       ctx.lineTo(width - padding.right, y);
       ctx.stroke();
-      ctx.fillText(pVal.toFixed(2), width - padding.right + 4, y + 3);
+      ctx.fillText(pVal.toFixed(1), width - padding.right + 3, y + 3);
     }
 
     ctx.beginPath();
@@ -628,7 +624,7 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.stroke();
     
     const formatVol = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : (v / 1e3).toFixed(0) + 'K';
-    ctx.fillText(formatVol(maxVol), width - padding.right + 4, volTop + 8);
+    ctx.fillText(formatVol(maxVol), width - padding.right + 3, volTop + 6);
 
     showK.forEach((k, i) => {
       const absoluteIdx = showStartIndex + i;
@@ -648,7 +644,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const yOpen = getYPrice(open);
       const yClose = getYPrice(close);
       const bodyTop = Math.min(yOpen, yClose);
-      const bodyH = Math.max(Math.abs(yOpen - yClose), 1.5);
+      const bodyH = Math.max(Math.abs(yOpen - yClose), 1);
       const bw = Math.max(barWidth * 0.7, 1);
 
       ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH);
@@ -665,45 +661,44 @@ canvas { display: block; width: 100%; height: 100%; }
         isNowAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
         isPrevAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
       } else {
-        // 15m 與 1h 均為收盤在均線 30, 45, 60 以上
         isNowAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx);
         isPrevAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx - 1);
       }
       
       if (isNowAbove && !isPrevAbove) {
         ctx.save();
-        ctx.font = 'bold 11px sans-serif';
+        ctx.font = 'bold 10px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.fillStyle = '#ffea00';
         ctx.shadowColor = '#ffea00';
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 5;
         const highY = getYPrice(high);
-        ctx.fillText('⚡', x, highY - 4);
+        ctx.fillText('⚡', x, highY - 2);
         ctx.restore();
       }
 
-      // ⭐ 5VM 反轉向上提示符號
+      // 🌡 改成出現在成交量柱狀圖頂端
       const curVM5 = vm5All[absoluteIdx];
       const prevVM5 = vm5All[absoluteIdx - 1];
       const prev2VM5 = vm5All[absoluteIdx - 2];
       if (curVM5 !== null && prevVM5 !== null && prev2VM5 !== null) {
         if (curVM5 > prevVM5 && prevVM5 <= prev2VM5) {
           ctx.save();
-          ctx.font = 'bold 12px sans-serif';
+          ctx.font = 'bold 9px sans-serif';
           ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.fillStyle = '#ffff00';
-          ctx.shadowColor = '#ffff00';
-          ctx.shadowBlur = 10;
+          ctx.textBaseline = 'bottom';
+          ctx.fillStyle = '#ff9100';
+          ctx.shadowColor = '#ff9100';
+          ctx.shadowBlur = 6;
           const vYPos = getYVol(vol);
-          ctx.fillText('⭐', x, vYPos + 2);
+          ctx.fillText('🌡', x, vYPos - 2);
           ctx.restore();
         }
       }
     });
 
-    const drawLine = (dataArray, color, getYFunc, width = 1.2) => {
+    const drawLine = (dataArray, color, getYFunc, width = 1) => {
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
       ctx.beginPath();
@@ -723,8 +718,8 @@ canvas { display: block; width: 100%; height: 100%; }
     drawLine(showMA45, '#ff9100', getYPrice);
     drawLine(showMA60, '#ff007f', getYPrice);
 
-    drawLine(showVM5, '#00f0ff', getYVol, 1.0);
-    drawLine(showVM10, '#9d4edd', getYVol, 1.0);
+    drawLine(showVM5, '#00f0ff', getYVol, 0.9);
+    drawLine(showVM10, '#9d4edd', getYVol, 0.9);
   }
 
   let cachedKlines15m = null;
@@ -757,9 +752,9 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function updatePanelTags() {
-    dom.tagText15m.innerText = `15M 時間框架 (${COUNT_15M}根)`;
-    dom.tagText1h.innerText = `1H 時間框架 (${COUNT_1H}根)`;
-    dom.tagText4h.innerText = `4H 時間框架 (${COUNT_4H}根)`;
+    dom.tagText15m.innerText = `15M (${COUNT_15M})`;
+    dom.tagText1h.innerText = `1H (${COUNT_1H})`;
+    dom.tagText4h.innerText = `4H (${COUNT_4H})`;
   }
 
   function redrawAllPanels() {
@@ -817,7 +812,6 @@ canvas { display: block; width: 100%; height: 100%; }
   function handleSwipe() {
     const deltaX = touchEndX - touchStartX;
     const deltaY = touchEndY - touchStartY;
-    
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
       if (deltaX < 0) navigateSymbol(1);
       else navigateSymbol(-1);
