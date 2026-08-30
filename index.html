@@ -304,22 +304,29 @@ canvas { display: block; width: 100%; height: 100%; }
   } 
 
   function formatVolumeText(volume) {
-    if (volume >= 1e9) {
-      return (volume / 1e9).toFixed(2) + 'B';
-    } else if (volume >= 1e6) {
-      return (volume / 1e6).toFixed(2) + 'M';
-    } else if (volume >= 1e3) {
-      return (volume / 1e3).toFixed(2) + 'K';
-    }
-    return volume.toFixed(2);
+    const yi = volume / 100000000;
+    return yi.toFixed(2) + '億';
   }
 
-  function checkAboveAllMAsAtIndex(closes, ma30, ma45, ma60, idx) {
+  // 15M 與 1H 條件：收盤在均線 30, 45, 60 以上
+  function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
     if (idx < 0 || idx >= closes.length) return false;
     const price = closes[idx];
     const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
     
     return (m30 !== null && price >= m30) && 
+           (m45 !== null && price >= m45) && 
+           (m60 !== null && price >= m60);
+  }
+
+  // 4H 條件：收盤在均線 5, 30, 45, 60 以上
+  function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
+    if (idx < 0 || idx >= closes.length) return false;
+    const price = closes[idx];
+    const m5 = ma5[idx], m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
+    
+    return (m5 !== null && price >= m5) &&
+           (m30 !== null && price >= m30) && 
            (m45 !== null && price >= m45) && 
            (m60 !== null && price >= m60);
   }
@@ -342,8 +349,8 @@ canvas { display: block; width: 100%; height: 100%; }
 
     if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
       const ma3DistPercent = ((price - ma3) / ma3) * 100;
-      const isAboveAllNow = checkAboveAllMAsAtIndex(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
-      const isAboveAllPrev = checkAboveAllMAsAtIndex(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
+      const isAboveAllNow = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
+      const isAboveAllPrev = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
       const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
 
       return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
@@ -534,7 +541,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let activeChartController = null;
 
-  function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount) {
+  function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, periodType) {
     const closesAll = klinesRaw.map(k => parseFloat(k[4]));
     const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
 
@@ -650,9 +657,18 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-      // ⚡ 閃電突破訊號 (收盤在均線30, 45, 60以上)
-      const isNowAbove = checkAboveAllMAsAtIndex(closesAll, ma30All, ma45All, ma60All, absoluteIdx);
-      const isPrevAbove = checkAboveAllMAsAtIndex(closesAll, ma30All, ma45All, ma60All, absoluteIdx - 1);
+      // ⚡ 閃電突破訊號判斷
+      let isNowAbove = false;
+      let isPrevAbove = false;
+
+      if (periodType === '4h') {
+        isNowAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
+        isPrevAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
+      } else {
+        // 15m 與 1h 均為收盤在均線 30, 45, 60 以上
+        isNowAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx);
+        isPrevAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx - 1);
+      }
       
       if (isNowAbove && !isPrevAbove) {
         ctx.save();
@@ -747,9 +763,9 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function redrawAllPanels() {
-    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M);
-    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H);
-    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H);
+    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M, '15m');
+    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H, '1h');
+    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H, '4h');
   }
 
   function openChartModal(index) {
