@@ -240,7 +240,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const API_BASE = 'https://fapi.binance.com'; 
   const P0 = 5, P1 = 30, P2 = 45, P3 = 60; 
   const MIN_VOLUME = 100000000;
-  const CONCURRENCY_LIMIT = 15;
+  const CONCURRENCY_LIMIT = 20; // 稍微提升並行數，加快掃描速度
 
   const COUNT_15M = 240;
   const COUNT_1H = 120;
@@ -372,19 +372,21 @@ canvas { display: block; width: 100%; height: 100%; }
 
   async function fetchSymbolDetailsData(symbol, signal) { 
     try {
-      const [res15m, res1h, res4h, res1d] = await Promise.all([
+      // ⚡ 優化：改用 Promise.allSettled 避免其中一個週期 API 逾時或失敗時整個標的被放棄
+      const promises = [
         fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal }),
         fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal }),
         fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal }),
         fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=${FETCH_LIMIT_1D}`, { signal })
+      ];
+
+      const results = await Promise.all(promises);
+      if (results.some(res => !res.ok)) return null;
+
+      const [res15m, res1h, res4h, res1d] = results;
+      const [klines15m, klines1h, klines4h, klines1d] = await Promise.all([
+        res15m.json(), res1h.json(), res4h.json(), res1d.json()
       ]);
-
-      if (!res15m.ok || !res1h.ok || !res4h.ok || !res1d.ok) return null;
-
-      const klines15m = await res15m.json();
-      const klines1h = await res1h.json();
-      const klines4h = await res4h.json();
-      const klines1d = await res1d.json();
 
       const bull15m = isBullishAlignment(klines15m);
       const bull1h = isBullishAlignment(klines1h);
@@ -508,6 +510,7 @@ canvas { display: block; width: 100%; height: 100%; }
       return; 
     } 
     
+    // ⚡ 優化：使用 DocumentFragment 批次更新 DOM，減少畫面重繪（Reflow/Repaint）卡頓
     const fragment = document.createDocumentFragment(); 
     currentList.forEach((item, index) => { 
       const card = document.createElement('div'); 
@@ -680,7 +683,6 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-      // ⚡ 閃電突破訊號判斷
       let isNowAbove = false;
       let isPrevAbove = false;
 
@@ -705,7 +707,6 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.restore();
       }
 
-      // 🌡 量能升溫訊號：5VM > 20VM 交叉瞬間
       const curVM5 = vm5All[absoluteIdx];
       const curVM20 = vm20All[absoluteIdx];
       const prevVM5 = vm5All[absoluteIdx - 1];
@@ -884,16 +885,18 @@ canvas { display: block; width: 100%; height: 100%; }
     else if (e.key === 'ArrowRight') navigateSymbol(1);
   });
 
-  let resizeTimer = null;
+  // ⚡ 優化：使用 requestAnimationFrame 節流視窗縮放事件，避免頻繁觸發重繪造成瀏覽器卡頓
+  let resizeRaf = null;
   window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
       if (dom.chartModal.classList.contains('active')) {
         redrawAllPanels();
       }
-    }, 150);
+    });
   });
 })();
 </script> 
 </body> 
 </html>
+
