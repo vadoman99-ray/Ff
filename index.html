@@ -3,7 +3,7 @@
 <head> 
 <meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
-<title>⚡ 多週期多頭排列儀表板 (>1億USDT)</title> 
+<title>⚡ 極速多週期多頭排列儀表板 (>1億USDT)</title> 
 <style> 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap'); 
 :root { 
@@ -50,7 +50,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .scan-btn:active { transform: scale(0.95); } 
 .scan-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; } 
 .progress-container { height: 3px; background: rgba(255, 255, 255, 0.05); width: 100%; } 
-.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.1s linear; } 
+.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.05s linear; } 
 
 .tab-container {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 0 12px; margin-top: 12px;
@@ -239,8 +239,6 @@ canvas { display: block; width: 100%; height: 100%; }
 (() => {
   const API_BASE = 'https://fapi.binance.com'; 
   const P0 = 5, P1 = 30, P2 = 45, P3 = 60; 
-  const MIN_VOLUME = 100000000;
-  const CONCURRENCY_LIMIT = 25; // 提高並行數，加快掃描速度
 
   const COUNT_15M = 240;
   const COUNT_1H = 120;
@@ -324,119 +322,113 @@ canvas { display: block; width: 100%; height: 100%; }
     return yi.toFixed(2) + '億';
   }
 
-  function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
-    if (idx < 0 || idx >= closes.length) return false;
-    const price = closes[idx];
-    const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
-    return (m30 !== null && price >= m30) && 
-           (m45 !== null && price >= m45) && 
-           (m60 !== null && price >= m60);
-  }
-
-  function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
-    if (idx < 0 || idx >= closes.length) return false;
-    const price = closes[idx];
-    const m5 = ma5[idx], m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
-    return (m5 !== null && price >= m5) &&
-           (m30 !== null && price >= m30) && 
-           (m45 !== null && price >= m45) && 
-           (m60 !== null && price >= m60);
-  }
-
-  function isBullishAlignment(klinesRaw) {
-    const totalLen = klinesRaw.length;
-    if (totalLen < P3) return null;
-
-    const closes = klinesRaw.map(k => parseFloat(k[4]));
-    const price = closes[totalLen - 1];
-
-    const ma5Arr = calculateSMA(closes, P0);
-    const ma1Arr = calculateSMA(closes, P1);
-    const ma2Arr = calculateSMA(closes, P2);
-    const ma3Arr = calculateSMA(closes, P3);
-
-    const ma1 = ma1Arr[totalLen - 1];
-    const ma2 = ma2Arr[totalLen - 1];
-    const ma3 = ma3Arr[totalLen - 1];
-
-    if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
-      const ma3DistPercent = ((price - ma3) / ma3) * 100;
-      const isAboveAllNow = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
-      const isAboveAllPrev = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
-      const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
-
-      return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
+  // 建立 Web Worker 腳本字串以實現背景並行運算
+  const workerCode = `
+    function calculateSMA(data, period) { 
+      const len = data.length; 
+      if (len < period) return new Array(len).fill(null); 
+      const ma = new Array(len).fill(null); 
+      let sum = 0; 
+      for (let i = 0; i < period; i++) sum += data[i]; 
+      ma[period - 1] = sum / period; 
+      for (let i = period; i < len; i++) { 
+        sum += data[i] - data[i - period]; 
+        ma[i] = sum / period; 
+      } 
+      return ma; 
     }
-    return null;
-  }
 
-  async function fetchSymbolDetailsData(symbol, signal) { 
-    try {
-      const promises = [
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=${FETCH_LIMIT_1D}`, { signal })
-      ];
+    function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
+      if (idx < 0 || idx >= closes.length) return false;
+      const price = closes[idx];
+      const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
+      return (m30 !== null && price >= m30) && 
+             (m45 !== null && price >= m45) && 
+             (m60 !== null && price >= m60);
+    }
 
-      const results = await Promise.allSettled(promises);
-      if (results.some(r => r.status === 'rejected' || !r.value.ok)) return null;
+    function isBullishAlignment(klinesRaw) {
+      const totalLen = klinesRaw.length;
+      if (totalLen < 60) return null;
 
-      const [res15m, res1h, res4h, res1d] = results.map(r => r.value);
-      const [klines15m, klines1h, klines4h, klines1d] = await Promise.all([
-        res15m.json(), res1h.json(), res4h.json(), res1d.json()
-      ]);
+      const closes = klinesRaw.map(k => parseFloat(k[4]));
+      const price = closes[totalLen - 1];
 
-      const bull15m = isBullishAlignment(klines15m);
-      const bull1h = isBullishAlignment(klines1h);
-      const bull4h = isBullishAlignment(klines4h);
-      const bull1d = isBullishAlignment(klines1d);
+      const ma1Arr = calculateSMA(closes, 30);
+      const ma2Arr = calculateSMA(closes, 45);
+      const ma3Arr = calculateSMA(closes, 60);
 
-      if (!bull15m && !bull1h && !bull4h && !bull1d) return null;
+      const ma1 = ma1Arr[totalLen - 1];
+      const ma2 = ma2Arr[totalLen - 1];
+      const ma3 = ma3Arr[totalLen - 1];
 
-      let matchCount = 0;
-      if (bull15m) matchCount++;
-      if (bull1h) matchCount++;
-      if (bull4h) matchCount++;
-      if (bull1d) matchCount++;
+      if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
+        const ma3DistPercent = ((price - ma3) / ma3) * 100;
+        const isAboveAllNow = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
+        const isAboveAllPrev = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
+        const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
 
-      const ticker = tickerMap.get(symbol);
-      const priceChange24h = ticker ? parseFloat(ticker.priceChangePercent) : 0; 
-      const quoteVolume24h = ticker ? parseFloat(ticker.quoteVolume) : 0;
-      const currentPrice = (bull15m || bull1h || bull4h || bull1d).price;
-
-      return { 
-        symbol, 
-        price: currentPrice, 
-        bull15m,
-        bull1h,
-        bull4h,
-        bull1d,
-        matchCount,
-        priceChange24h,
-        quoteVolume24h
-      }; 
-    } catch {
+        return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
+      }
       return null;
     }
-  } 
 
-  async function batchProcess(items, limit, fn, onProgress) {
-    const results = [];
-    let completed = 0;
-    for (let i = 0; i < items.length; i += limit) {
-      const chunk = items.slice(i, i + limit);
-      const chunkResults = await Promise.all(chunk.map(item => fn(item)));
-      results.push(...chunkResults.filter(Boolean));
-      completed += chunk.length;
-      if (onProgress) onProgress(completed);
+    async function fetchSymbol(symbol, apiBase, limits) {
+      try {
+        const promises = [
+          fetch(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=15m&limit=\${limits.l15m}\`),
+          fetch(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`),
+          fetch(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=4h&limit=\${limits.l4h}\`),
+          fetch(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1d&limit=\${limits.l1d}\`)
+        ];
+        const results = await Promise.allSettled(promises);
+        if (results.some(r => r.status === 'rejected' || !r.value.ok)) return null;
+
+        const [res15m, res1h, res4h, res1d] = results.map(r => r.value);
+        const [klines15m, klines1h, klines4h, klines1d] = await Promise.all([
+          res15m.json(), res1h.json(), res4h.json(), res1d.json()
+        ]);
+
+        const bull15m = isBullishAlignment(klines15m);
+        const bull1h = isBullishAlignment(klines1h);
+        const bull4h = isBullishAlignment(klines1h ? klines4h : klines4h); // optimization reference
+        const bull1d = isBullishAlignment(klines1d);
+
+        if (!bull15m && !bull1h && !bull4h && !bull1d) return null;
+
+        let matchCount = 0;
+        if (bull15m) matchCount++;
+        if (bull1h) matchCount++;
+        if (bull4h) matchCount++;
+        if (bull1d) matchCount++;
+
+        return { symbol, bull15m, bull1h, bull4h, bull1d, matchCount, currentPrice: (bull15m || bull1h || bull4h || bull1d).price };
+      } catch {
+        return null;
+      }
     }
-    return results;
-  }
+
+    self.onmessage = async function(e) {
+      const { symbols, apiBase, limits } = e.data;
+      const concurrency = 35; // 高並行處理
+      let completed = 0;
+      const matches = [];
+
+      for (let i = 0; i < symbols.length; i += concurrency) {
+        const chunk = symbols.slice(i, i + concurrency);
+        const chunkResults = await Promise.all(chunk.map(sym => fetchSymbol(sym, apiBase, limits)));
+        chunkResults.filter(Boolean).forEach(res => matches.push(res));
+        completed += chunk.length;
+        self.postMessage({ type: 'progress', completed, total: symbols.length });
+      }
+
+      self.postMessage({ type: 'done', matches });
+    };
+  `;
 
   async function startScan() { 
     dom.scanBtn.disabled = true; 
-    dom.scanBtn.innerText = "⚡ 掃描中..."; 
+    dom.scanBtn.innerText = "⚡ 背景極速掃描中..."; 
     dom.symbolList.replaceChildren(); 
     dom.progress.style.width = '0%';
 
@@ -454,6 +446,7 @@ canvas { display: block; width: 100%; height: 100%; }
       return;
     }
 
+    const MIN_VOLUME = 100000000;
     const candidateSymbols = Array.from(tickerMap.keys()).filter(sym => { 
       if (!sym.endsWith('USDT')) return false; 
       return parseFloat(tickerMap.get(sym).quoteVolume) > MIN_VOLUME; 
@@ -461,32 +454,66 @@ canvas { display: block; width: 100%; height: 100%; }
 
     dom.statTotal.innerText = candidateSymbols.length; 
 
-    const allMatches = await batchProcess(candidateSymbols, CONCURRENCY_LIMIT, (sym) => fetchSymbolDetailsData(sym), (completed) => {
-      dom.progress.style.width = `${(completed / candidateSymbols.length) * 100}%`; 
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(blob));
+
+    worker.postMessage({
+      symbols: candidateSymbols,
+      apiBase: API_BASE,
+      limits: {
+        l15m: FETCH_LIMIT_15M,
+        l1h: FETCH_LIMIT_1H,
+        l4h: FETCH_LIMIT_4H,
+        l1d: FETCH_LIMIT_1D
+      }
     });
 
-    results15M = allMatches.filter(m => m.bull15m);
-    results1H = allMatches.filter(m => m.bull1h);
-    results4H = allMatches.filter(m => m.bull4h);
-    results1D = allMatches.filter(m => m.bull1d);
-    resultsMulti = allMatches.filter(m => m.matchCount >= 2);
+    worker.onmessage = (e) => {
+      const { type, completed, total, matches } = e.data;
+      if (type === 'progress') {
+        dom.progress.style.width = `${(completed / total) * 100}%`;
+      } else if (type === 'done') {
+        worker.terminate();
 
-    const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
-    results15M.sort(sortByChange);
-    results1H.sort(sortByChange);
-    results4H.sort(sortByChange);
-    results1D.sort(sortByChange);
-    resultsMulti.sort(sortByChange);
+        const allMatches = matches.map(m => {
+          const ticker = tickerMap.get(m.symbol);
+          return {
+            symbol: m.symbol,
+            price: m.currentPrice,
+            bull15m: m.bull15m,
+            bull1h: m.bull1h,
+            bull4h: m.bull4h,
+            bull1d: m.bull1d,
+            matchCount: m.matchCount,
+            priceChange24h: ticker ? parseFloat(ticker.priceChangePercent) : 0,
+            quoteVolume24h: ticker ? parseFloat(ticker.quoteVolume) : 0
+          };
+        });
 
-    dom.count15m.innerText = results15M.length;
-    dom.count1h.innerText = results1H.length;
-    dom.count4h.innerText = results4H.length;
-    dom.count1d.innerText = results1D.length;
-    dom.countMulti.innerText = resultsMulti.length;
+        results15M = allMatches.filter(m => m.bull15m);
+        results1H = allMatches.filter(m => m.bull1h);
+        results4H = allMatches.filter(m => m.bull4h);
+        results1D = allMatches.filter(m => m.bull1d);
+        resultsMulti = allMatches.filter(m => m.matchCount >= 2);
 
-    dom.scanBtn.disabled = false; 
-    dom.scanBtn.innerText = "啟動極速掃描"; 
-    renderList(); 
+        const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
+        results15M.sort(sortByChange);
+        results1H.sort(sortByChange);
+        results4H.sort(sortByChange);
+        results1D.sort(sortByChange);
+        resultsMulti.sort(sortByChange);
+
+        dom.count15m.innerText = results15M.length;
+        dom.count1h.innerText = results1H.length;
+        dom.count4h.innerText = results4H.length;
+        dom.count1d.innerText = results1D.length;
+        dom.countMulti.innerText = resultsMulti.length;
+
+        dom.scanBtn.disabled = false; 
+        dom.scanBtn.innerText = "啟動極速掃描"; 
+        renderList();
+      }
+    };
   } 
 
   function getCurrentList() {
@@ -681,6 +708,23 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
+      const checkAboveMAs5_30_45_60 = (closes, ma5, ma30, ma45, ma60, idx) => {
+        if (idx < 0 || idx >= closes.length) return false;
+        const price = closes[idx];
+        return (ma5[idx] !== null && price >= ma5[idx]) &&
+               (ma30[idx] !== null && price >= ma30[idx]) && 
+               (ma45[idx] !== null && price >= ma45[idx]) && 
+               (ma60[idx] !== null && price >= ma60[idx]);
+      };
+
+      const checkAboveMAs30_45_60 = (closes, ma30, ma45, ma60, idx) => {
+        if (idx < 0 || idx >= closes.length) return false;
+        const price = closes[idx];
+        return (ma30[idx] !== null && price >= ma30[idx]) && 
+               (ma45[idx] !== null && price >= ma45[idx]) && 
+               (ma60[idx] !== null && price >= ma60[idx]);
+      };
+
       let isNowAbove = false;
       let isPrevAbove = false;
 
@@ -703,29 +747,6 @@ canvas { display: block; width: 100%; height: 100%; }
         const highY = getYPrice(high);
         ctx.fillText('⚡', x, highY - 2);
         ctx.restore();
-      }
-
-      const curVM5 = vm5All[absoluteIdx];
-      const curVM20 = vm20All[absoluteIdx];
-      const prevVM5 = vm5All[absoluteIdx - 1];
-      const prevVM20 = vm20All[absoluteIdx - 1];
-
-      if (curVM5 !== null && curVM20 !== null && prevVM5 !== null && prevVM20 !== null) {
-        const isNowGoldenCross = curVM5 > curVM20;
-        const isPrevGoldenCross = prevVM5 <= prevVM20;
-
-        if (isNowGoldenCross && isPrevGoldenCross) {
-          ctx.save();
-          ctx.font = 'bold 9px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.fillStyle = '#ff9100';
-          ctx.shadowColor = '#ff9100';
-          ctx.shadowBlur = 6;
-          const vYPos = getYVol(vol);
-          ctx.fillText('🌡', x, vYPos - 2);
-          ctx.restore();
-        }
       }
     });
 
