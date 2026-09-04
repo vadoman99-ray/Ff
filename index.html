@@ -53,10 +53,10 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.1s linear; } 
 
 .tab-container {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0 16px; margin-top: 12px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 0 12px; margin-top: 12px;
 }
 .tab-btn {
-  padding: 8px 4px; border-radius: 8px; font-weight: 800; font-size: 0.75rem;
+  padding: 8px 2px; border-radius: 8px; font-weight: 800; font-size: 0.7rem;
   background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8; cursor: pointer; text-align: center; transition: all 0.2s ease;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -158,7 +158,7 @@ canvas { display: block; width: 100%; height: 100%; }
   .symbol-title { font-size: 0.8rem; }
   .legend-bar { font-size: 0.5rem; gap: 3px; }
   .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
-  .tab-btn { font-size: 0.65rem; padding: 6px 2px; }
+  .tab-btn { font-size: 0.6rem; padding: 6px 1px; }
 }
 </style> 
 </head> 
@@ -173,10 +173,11 @@ canvas { display: block; width: 100%; height: 100%; }
 <div class="progress-container"><div id="progress" class="progress-fill"></div></div> 
 
 <div class="tab-container">
-  <button id="tab15m" class="tab-btn active">⚡ 15M 多頭 (<span id="count15m">0</span>)</button>
-  <button id="tab1h" class="tab-btn">⚡ 1H 多頭 (<span id="count1h">0</span>)</button>
-  <button id="tab4h" class="tab-btn">⚡ 4H 多頭 (<span id="count4h">0</span>)</button>
-  <button id="tabMulti" class="tab-btn">🔥 共振(≥2) (<span id="countMulti">0</span>)</button>
+  <button id="tab15m" class="tab-btn active">⚡15M(<span id="count15m">0</span>)</button>
+  <button id="tab1h" class="tab-btn">⚡1H(<span id="count1h">0</span>)</button>
+  <button id="tab4h" class="tab-btn">⚡4H(<span id="count4h">0</span>)</button>
+  <button id="tab1d" class="tab-btn">⚡1D(<span id="count1d">0</span>)</button>
+  <button id="tabMulti" class="tab-btn">🔥共振(<span id="countMulti">0</span>)</button>
 </div>
 
 <div class="dashboard"> 
@@ -215,16 +216,20 @@ canvas { display: block; width: 100%; height: 100%; }
 
     <div class="charts-wrapper" id="chartsWrapper">
       <div class="chart-panel" id="wrapper15m" data-period="15m">
-        <span class="panel-tag" id="tagText15m">15M (240)</span>
+        <span class="panel-tag" id="tagText15m">15M</span>
         <canvas id="klineCanvas15m"></canvas>
       </div>
       <div class="chart-panel" id="wrapper1h" data-period="1h">
-        <span class="panel-tag" id="tagText1h">1H (120)</span>
+        <span class="panel-tag" id="tagText1h">1H</span>
         <canvas id="klineCanvas1h"></canvas>
       </div>
       <div class="chart-panel" id="wrapper4h" data-period="4h">
-        <span class="panel-tag" id="tagText4h">4H (60)</span>
+        <span class="panel-tag" id="tagText4h">4H</span>
         <canvas id="klineCanvas4h"></canvas>
+      </div>
+      <div class="chart-panel" id="wrapper1d" data-period="1d">
+        <span class="panel-tag" id="tagText1d">1D</span>
+        <canvas id="klineCanvas1d"></canvas>
       </div>
     </div>
   </div>
@@ -240,16 +245,18 @@ canvas { display: block; width: 100%; height: 100%; }
   const COUNT_15M = 240;
   const COUNT_1H = 120;
   const COUNT_4H = 60;
+  const COUNT_1D = 60;
 
-  // 確保 20VM 計算有足夠歷史數據
   const MAX_VM_PERIOD = 20;
   const FETCH_LIMIT_15M = COUNT_15M + Math.max(P3, MAX_VM_PERIOD);
   const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, MAX_VM_PERIOD);
   const FETCH_LIMIT_4H = COUNT_4H + Math.max(P3, MAX_VM_PERIOD);
+  const FETCH_LIMIT_1D = COUNT_1D + Math.max(P3, MAX_VM_PERIOD);
 
   let results15M = [];
   let results1H = []; 
   let results4H = []; 
+  let results1D = [];
   let resultsMulti = []; 
   let activeTab = '15m';
 
@@ -264,10 +271,12 @@ canvas { display: block; width: 100%; height: 100%; }
     count15m: document.getElementById('count15m'),
     count1h: document.getElementById('count1h'),
     count4h: document.getElementById('count4h'),
+    count1d: document.getElementById('count1d'),
     countMulti: document.getElementById('countMulti'),
     tab15m: document.getElementById('tab15m'),
     tab1h: document.getElementById('tab1h'),
     tab4h: document.getElementById('tab4h'),
+    tab1d: document.getElementById('tab1d'),
     tabMulti: document.getElementById('tabMulti'),
     symbolList: document.getElementById('symbolList'),
     chartModal: document.getElementById('chartModal'),
@@ -280,17 +289,21 @@ canvas { display: block; width: 100%; height: 100%; }
     wrapper15m: document.getElementById('wrapper15m'),
     wrapper1h: document.getElementById('wrapper1h'),
     wrapper4h: document.getElementById('wrapper4h'),
+    wrapper1d: document.getElementById('wrapper1d'),
     canvas15m: document.getElementById('klineCanvas15m'),
     canvas1h: document.getElementById('klineCanvas1h'),
     canvas4h: document.getElementById('klineCanvas4h'),
+    canvas1d: document.getElementById('klineCanvas1d'),
     tagText15m: document.getElementById('tagText15m'),
     tagText1h: document.getElementById('tagText1h'),
-    tagText4h: document.getElementById('tagText4h')
+    tagText4h: document.getElementById('tagText4h'),
+    tagText1d: document.getElementById('tagText1d')
   };
 
   const ctx15m = dom.canvas15m.getContext('2d');
   const ctx1h = dom.canvas1h.getContext('2d');
   const ctx4h = dom.canvas4h.getContext('2d');
+  const ctx1d = dom.canvas1d.getContext('2d');
 
   function calculateSMA(data, period) { 
     const len = data.length; 
@@ -359,33 +372,37 @@ canvas { display: block; width: 100%; height: 100%; }
 
   async function fetchSymbolDetailsData(symbol, signal) { 
     try {
-      const [res15m, res1h, res4h] = await Promise.all([
+      const [res15m, res1h, res4h, res1d] = await Promise.all([
         fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal }),
         fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal })
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=${FETCH_LIMIT_1D}`, { signal })
       ]);
 
-      if (!res15m.ok || !res1h.ok || !res4h.ok) return null;
+      if (!res15m.ok || !res1h.ok || !res4h.ok || !res1d.ok) return null;
 
       const klines15m = await res15m.json();
       const klines1h = await res1h.json();
       const klines4h = await res4h.json();
+      const klines1d = await res1d.json();
 
       const bull15m = isBullishAlignment(klines15m);
       const bull1h = isBullishAlignment(klines1h);
       const bull4h = isBullishAlignment(klines4h);
+      const bull1d = isBullishAlignment(klines1d);
 
-      if (!bull15m && !bull1h && !bull4h) return null;
+      if (!bull15m && !bull1h && !bull4h && !bull1d) return null;
 
       let matchCount = 0;
       if (bull15m) matchCount++;
       if (bull1h) matchCount++;
       if (bull4h) matchCount++;
+      if (bull1d) matchCount++;
 
       const ticker = tickerMap.get(symbol);
       const priceChange24h = ticker ? parseFloat(ticker.priceChangePercent) : 0; 
       const quoteVolume24h = ticker ? parseFloat(ticker.quoteVolume) : 0;
-      const currentPrice = (bull15m || bull1h || bull4h).price;
+      const currentPrice = (bull15m || bull1h || bull4h || bull1d).price;
 
       return { 
         symbol, 
@@ -393,6 +410,7 @@ canvas { display: block; width: 100%; height: 100%; }
         bull15m,
         bull1h,
         bull4h,
+        bull1d,
         matchCount,
         priceChange24h,
         quoteVolume24h
@@ -449,17 +467,20 @@ canvas { display: block; width: 100%; height: 100%; }
     results15M = allMatches.filter(m => m.bull15m);
     results1H = allMatches.filter(m => m.bull1h);
     results4H = allMatches.filter(m => m.bull4h);
+    results1D = allMatches.filter(m => m.bull1d);
     resultsMulti = allMatches.filter(m => m.matchCount >= 2);
 
     const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
     results15M.sort(sortByChange);
     results1H.sort(sortByChange);
     results4H.sort(sortByChange);
+    results1D.sort(sortByChange);
     resultsMulti.sort(sortByChange);
 
     dom.count15m.innerText = results15M.length;
     dom.count1h.innerText = results1H.length;
     dom.count4h.innerText = results4H.length;
+    dom.count1d.innerText = results1D.length;
     dom.countMulti.innerText = resultsMulti.length;
 
     dom.scanBtn.disabled = false; 
@@ -472,6 +493,7 @@ canvas { display: block; width: 100%; height: 100%; }
       case '15m': return results15M;
       case '1h': return results1H;
       case '4h': return results4H;
+      case '1d': return results1D;
       case 'multi': return resultsMulti;
       default: return [];
     }
@@ -499,6 +521,7 @@ canvas { display: block; width: 100%; height: 100%; }
       if (item.bull15m) matchBadges.push("15M");
       if (item.bull1h) matchBadges.push("1H");
       if (item.bull4h) matchBadges.push("4H");
+      if (item.bull1d) matchBadges.push("1D");
 
       const badgeHtml = item.matchCount >= 2 
         ? `<span class="badge-multi">🔥 ${item.matchCount}週期共振 (${matchBadges.join('+')})</span>`
@@ -511,6 +534,8 @@ canvas { display: block; width: 100%; height: 100%; }
         distText = `距 1H 60MA: <span class="val-up">+${item.bull1h.ma3DistPercent.toFixed(2)}%</span>`;
       } else if (activeTab === '4h' && item.bull4h) {
         distText = `距 4H 60MA: <span class="val-up">+${item.bull4h.ma3DistPercent.toFixed(2)}%</span>`;
+      } else if (activeTab === '1d' && item.bull1d) {
+        distText = `距 1D 60MA: <span class="val-up">+${item.bull1d.ma3DistPercent.toFixed(2)}%</span>`;
       } else {
         distText = `滿足週期: <span class="val-up">${matchBadges.join(', ')}</span>`;
       }
@@ -529,7 +554,7 @@ canvas { display: block; width: 100%; height: 100%; }
         </div> 
         <div style="text-align:right;"> 
           <div class="symbol-price">${item.price}</div> 
-          <div style="font-size:0.7rem; color:var(--manga-cyan); margin-top:4px;">點擊看 3 圖表 📈</div>
+          <div style="font-size:0.7rem; color:var(--manga-cyan); margin-top:4px;">點擊看 4 圖表 📈</div>
         </div> 
       `; 
       fragment.appendChild(card); 
@@ -659,7 +684,7 @@ canvas { display: block; width: 100%; height: 100%; }
       let isNowAbove = false;
       let isPrevAbove = false;
 
-      if (periodType === '4h') {
+      if (periodType === '4h' || periodType === '1d') {
         isNowAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
         isPrevAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
       } else {
@@ -680,7 +705,7 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.restore();
       }
 
-      // 🌡 量能升溫訊號：改用 5VM > 20VM 判定（當前 5VM > 20VM 且前一根 5VM <= 前一根 20VM 的交叉瞬間）
+      // 🌡 量能升溫訊號：5VM > 20VM 交叉瞬間
       const curVM5 = vm5All[absoluteIdx];
       const curVM20 = vm20All[absoluteIdx];
       const prevVM5 = vm5All[absoluteIdx - 1];
@@ -732,23 +757,26 @@ canvas { display: block; width: 100%; height: 100%; }
   let cachedKlines15m = null;
   let cachedKlines1h = null;
   let cachedKlines4h = null;
+  let cachedKlines1d = null;
 
   async function loadAndDrawCharts(symbol) {
     if (activeChartController) activeChartController.abort();
     activeChartController = new AbortController();
 
     try {
-      const [res15m, res1h, res4h] = await Promise.all([
+      const [res15m, res1h, res4h, res1d] = await Promise.all([
         fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal: activeChartController.signal }),
         fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal: activeChartController.signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal: activeChartController.signal })
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal: activeChartController.signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=${FETCH_LIMIT_1D}`, { signal: activeChartController.signal })
       ]);
 
-      if (!res15m.ok || !res1h.ok || !res4h.ok) return;
+      if (!res15m.ok || !res1h.ok || !res4h.ok || !res1d.ok) return;
 
       cachedKlines15m = await res15m.json();
       cachedKlines1h = await res1h.json();
       cachedKlines4h = await res4h.json();
+      cachedKlines1d = await res1d.json();
 
       updatePanelTags();
       redrawAllPanels();
@@ -762,12 +790,14 @@ canvas { display: block; width: 100%; height: 100%; }
     dom.tagText15m.innerText = `15M (${COUNT_15M})`;
     dom.tagText1h.innerText = `1H (${COUNT_1H})`;
     dom.tagText4h.innerText = `4H (${COUNT_4H})`;
+    dom.tagText1d.innerText = `1D (${COUNT_1D})`;
   }
 
   function redrawAllPanels() {
     if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M, '15m');
     if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H, '1h');
     if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H, '4h');
+    if (cachedKlines1d) renderCanvasChart(dom.canvas1d, dom.wrapper1d, ctx1d, cachedKlines1d, COUNT_1D, '1d');
   }
 
   function openChartModal(index) {
@@ -827,7 +857,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function switchTab(tabKey, targetBtn) {
     activeTab = tabKey;
-    [dom.tab15m, dom.tab1h, dom.tab4h, dom.tabMulti].forEach(b => b.classList.remove('active'));
+    [dom.tab15m, dom.tab1h, dom.tab4h, dom.tab1d, dom.tabMulti].forEach(b => b.classList.remove('active'));
     targetBtn.classList.add('active');
     renderList();
   }
@@ -835,6 +865,7 @@ canvas { display: block; width: 100%; height: 100%; }
   dom.tab15m.addEventListener('click', () => switchTab('15m', dom.tab15m));
   dom.tab1h.addEventListener('click', () => switchTab('1h', dom.tab1h));
   dom.tab4h.addEventListener('click', () => switchTab('4h', dom.tab4h));
+  dom.tab1d.addEventListener('click', () => switchTab('1d', dom.tab1d));
   dom.tabMulti.addEventListener('click', () => switchTab('multi', dom.tabMulti));
 
   dom.scanBtn.addEventListener('click', startScan);
