@@ -260,6 +260,9 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let tickerMap = new Map(); 
   let currentIndex = -1; 
+  
+  // 建立 K 線記憶體快取，避免重複請求網路
+  const klinesCache = new Map();
 
   const dom = {
     scanBtn: document.getElementById('scanBtn'),
@@ -322,7 +325,6 @@ canvas { display: block; width: 100%; height: 100%; }
     return yi.toFixed(2) + '億';
   }
 
-  // 建立 Web Worker 腳本字串以實現背景並行運算
   const workerCode = `
     function calculateSMA(data, period) { 
       const len = data.length; 
@@ -391,7 +393,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
         const bull15m = isBullishAlignment(klines15m);
         const bull1h = isBullishAlignment(klines1h);
-        const bull4h = isBullishAlignment(klines1h ? klines4h : klines4h); // optimization reference
+        const bull4h = isBullishAlignment(klines4h);
         const bull1d = isBullishAlignment(klines1d);
 
         if (!bull15m && !bull1h && !bull4h && !bull1d) return null;
@@ -402,7 +404,13 @@ canvas { display: block; width: 100%; height: 100%; }
         if (bull4h) matchCount++;
         if (bull1d) matchCount++;
 
-        return { symbol, bull15m, bull1h, bull4h, bull1d, matchCount, currentPrice: (bull15m || bull1h || bull4h || bull1d).price };
+        return { 
+          symbol, 
+          bull15m, bull1h, bull4h, bull1d, 
+          matchCount, 
+          currentPrice: (bull15m || bull1h || bull4h || bull1d).price,
+          rawKlines: { k15m: klines15m, k1h: klines1h, k4h: klines1h ? klines4h : klines4h, k1d: klines1d }
+        };
       } catch {
         return null;
       }
@@ -410,7 +418,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
     self.onmessage = async function(e) {
       const { symbols, apiBase, limits } = e.data;
-      const concurrency = 35; // 高並行處理
+      const concurrency = 40; // 稍微調高效能併發量
       let completed = 0;
       const matches = [];
 
@@ -431,6 +439,7 @@ canvas { display: block; width: 100%; height: 100%; }
     dom.scanBtn.innerText = "⚡ 背景極速掃描中..."; 
     dom.symbolList.replaceChildren(); 
     dom.progress.style.width = '0%';
+    klinesCache.clear(); // 清空舊快取
 
     try {
       const res = await fetch(`${API_BASE}/fapi/v1/ticker/24hr`); 
@@ -477,6 +486,10 @@ canvas { display: block; width: 100%; height: 100%; }
 
         const allMatches = matches.map(m => {
           const ticker = tickerMap.get(m.symbol);
+          
+          // 將 Worker 計算好的原始 K 線直接存入快取，完全省去點擊後再次發送網路請求的開銷
+          klinesCache.set(m.symbol, m.rawKlines);
+
           return {
             symbol: m.symbol,
             price: m.currentPrice,
@@ -589,8 +602,6 @@ canvas { display: block; width: 100%; height: 100%; }
     }); 
     dom.symbolList.replaceChildren(fragment); 
   } 
-
-  let activeChartController = null;
 
   function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, periodType) {
     const closesAll = klinesRaw.map(k => parseFloat(k[4]));
@@ -774,37 +785,16 @@ canvas { display: block; width: 100%; height: 100%; }
     drawLine(showVM20, '#9d4edd', getYVol, 0.9);
   }
 
-  let cachedKlines15m = null;
-  let cachedKlines1h = null;
-  let cachedKlines4h = null;
-  let cachedKlines1d = null;
-
-  async function loadAndDrawCharts(symbol) {
-    if (activeChartController) activeChartController.abort();
-    activeChartController = new AbortController();
-
-    try {
-      const promises = [
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal: activeChartController.signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal: activeChartController.signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal: activeChartController.signal }),
-        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=${FETCH_LIMIT_1D}`, { signal: activeChartController.signal })
-      ];
-
-      const results = await Promise.allSettled(promises);
-      if (results.some(r => r.status === 'rejected' || !r.value.ok)) return;
-
-      const [res15m, res1h, res4h, res1d] = results.map(r => r.value);
-      cachedKlines15m = await res15m.json();
-      cachedKlines1h = await res1h.json();
-      cachedKlines4h = await res4h.json();
-      cachedKlines1d = await res1d.json();
-
-      updatePanelTags();
-      redrawAllPanels();
-
-    } catch (err) {
-      if (err.name !== 'AbortError') console.error(err);
+  function loadAndDrawCharts(symbol) {
+    updatePanelTags();
+    
+    // 直接從記憶體快取中讀取，零網路等待時間！
+    const cached = klinesCache.get(symbol);
+    if (cached) {
+      renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cached.k15m, COUNT_15M, '15m');
+      renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H, '1h');
+      renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cached.k4h, COUNT_4H, '4h');
+      renderCanvasChart(dom.canvas1d, dom.wrapper1d, ctx1d, cached.k1d, COUNT_1D, '1d');
     }
   }
 
@@ -813,13 +803,6 @@ canvas { display: block; width: 100%; height: 100%; }
     dom.tagText1h.innerText = `1H (${COUNT_1H})`;
     dom.tagText4h.innerText = `4H (${COUNT_4H})`;
     dom.tagText1d.innerText = `1D (${COUNT_1D})`;
-  }
-
-  function redrawAllPanels() {
-    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M, '15m');
-    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H, '1h');
-    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H, '4h');
-    if (cachedKlines1d) renderCanvasChart(dom.canvas1d, dom.wrapper1d, ctx1d, cachedKlines1d, COUNT_1D, '1d');
   }
 
   function openChartModal(index) {
@@ -838,7 +821,6 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function closeChartModal() {
-    if (activeChartController) activeChartController.abort();
     dom.chartModal.classList.remove('active');
     dom.chartModal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
@@ -910,8 +892,11 @@ canvas { display: block; width: 100%; height: 100%; }
   window.addEventListener('resize', () => {
     if (resizeRaf) cancelAnimationFrame(resizeRaf);
     resizeRaf = requestAnimationFrame(() => {
-      if (dom.chartModal.classList.contains('active')) {
-        redrawAllPanels();
+      if (dom.chartModal.classList.contains('active') && currentIndex !== -1) {
+        const currentList = getCurrentList();
+        if (currentList[currentIndex]) {
+          loadAndDrawCharts(currentList[currentIndex].symbol);
+        }
       }
     });
   });
