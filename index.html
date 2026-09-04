@@ -3,7 +3,7 @@
 <head> 
 <meta charset="UTF-8"> 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> 
-<title>⚡ 極速多週期多頭排列儀表板 (>1億USDT)</title> 
+<title>⚡ 多週期多頭排列儀表板 (>1億USDT)</title> 
 <style> 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap'); 
 :root { 
@@ -50,7 +50,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .scan-btn:active { transform: scale(0.95); } 
 .scan-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; } 
 .progress-container { height: 3px; background: rgba(255, 255, 255, 0.05); width: 100%; } 
-.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.05s linear; } 
+.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.1s linear; } 
 
 .tab-container {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 0 12px; margin-top: 12px;
@@ -239,6 +239,8 @@ canvas { display: block; width: 100%; height: 100%; }
 (() => {
   const API_BASE = 'https://fapi.binance.com'; 
   const P0 = 5, P1 = 30, P2 = 45, P3 = 60; 
+  const MIN_VOLUME = 100000000;
+  const CONCURRENCY_LIMIT = 15;
 
   const COUNT_15M = 240;
   const COUNT_1H = 120;
@@ -260,9 +262,6 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let tickerMap = new Map(); 
   let currentIndex = -1; 
-  
-  // 建立 K 線記憶體快取，避免重複請求網路
-  const klinesCache = new Map();
 
   const dom = {
     scanBtn: document.getElementById('scanBtn'),
@@ -325,121 +324,120 @@ canvas { display: block; width: 100%; height: 100%; }
     return yi.toFixed(2) + '億';
   }
 
-  const workerCode = `
-    function calculateSMA(data, period) { 
-      const len = data.length; 
-      if (len < period) return new Array(len).fill(null); 
-      const ma = new Array(len).fill(null); 
-      let sum = 0; 
-      for (let i = 0; i < period; i++) sum += data[i]; 
-      ma[period - 1] = sum / period; 
-      for (let i = period; i < len; i++) { 
-        sum += data[i] - data[i - period]; 
-        ma[i] = sum / period; 
-      } 
-      return ma; 
+  function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
+    if (idx < 0 || idx >= closes.length) return false;
+    const price = closes[idx];
+    const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
+    return (m30 !== null && price >= m30) && 
+           (m45 !== null && price >= m45) && 
+           (m60 !== null && price >= m60);
+  }
+
+  function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
+    if (idx < 0 || idx >= closes.length) return false;
+    const price = closes[idx];
+    const m5 = ma5[idx], m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
+    return (m5 !== null && price >= m5) &&
+           (m30 !== null && price >= m30) && 
+           (m45 !== null && price >= m45) && 
+           (m60 !== null && price >= m60);
+  }
+
+  function isBullishAlignment(klinesRaw) {
+    const totalLen = klinesRaw.length;
+    if (totalLen < P3) return null;
+
+    const closes = klinesRaw.map(k => parseFloat(k[4]));
+    const price = closes[totalLen - 1];
+
+    const ma5Arr = calculateSMA(closes, P0);
+    const ma1Arr = calculateSMA(closes, P1);
+    const ma2Arr = calculateSMA(closes, P2);
+    const ma3Arr = calculateSMA(closes, P3);
+
+    const ma1 = ma1Arr[totalLen - 1];
+    const ma2 = ma2Arr[totalLen - 1];
+    const ma3 = ma3Arr[totalLen - 1];
+
+    if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
+      const ma3DistPercent = ((price - ma3) / ma3) * 100;
+      const isAboveAllNow = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
+      const isAboveAllPrev = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
+      const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
+
+      return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
     }
+    return null;
+  }
 
-    function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
-      if (idx < 0 || idx >= closes.length) return false;
-      const price = closes[idx];
-      const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
-      return (m30 !== null && price >= m30) && 
-             (m45 !== null && price >= m45) && 
-             (m60 !== null && price >= m60);
-    }
+  async function fetchSymbolDetailsData(symbol, signal) { 
+    try {
+      const [res15m, res1h, res4h, res1d] = await Promise.all([
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=${FETCH_LIMIT_1D}`, { signal })
+      ]);
 
-    function isBullishAlignment(klinesRaw) {
-      const totalLen = klinesRaw.length;
-      if (totalLen < 60) return null;
+      if (!res15m.ok || !res1h.ok || !res4h.ok || !res1d.ok) return null;
 
-      const closes = klinesRaw.map(k => parseFloat(k[4]));
-      const price = closes[totalLen - 1];
+      const klines15m = await res15m.json();
+      const klines1h = await res1h.json();
+      const klines4h = await res4h.json();
+      const klines1d = await res1d.json();
 
-      const ma1Arr = calculateSMA(closes, 30);
-      const ma2Arr = calculateSMA(closes, 45);
-      const ma3Arr = calculateSMA(closes, 60);
+      const bull15m = isBullishAlignment(klines15m);
+      const bull1h = isBullishAlignment(klines1h);
+      const bull4h = isBullishAlignment(klines4h);
+      const bull1d = isBullishAlignment(klines1d);
 
-      const ma1 = ma1Arr[totalLen - 1];
-      const ma2 = ma2Arr[totalLen - 1];
-      const ma3 = ma3Arr[totalLen - 1];
+      if (!bull15m && !bull1h && !bull4h && !bull1d) return null;
 
-      if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
-        const ma3DistPercent = ((price - ma3) / ma3) * 100;
-        const isAboveAllNow = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
-        const isAboveAllPrev = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
-        const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
+      let matchCount = 0;
+      if (bull15m) matchCount++;
+      if (bull1h) matchCount++;
+      if (bull4h) matchCount++;
+      if (bull1d) matchCount++;
 
-        return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
-      }
+      const ticker = tickerMap.get(symbol);
+      const priceChange24h = ticker ? parseFloat(ticker.priceChangePercent) : 0; 
+      const quoteVolume24h = ticker ? parseFloat(ticker.quoteVolume) : 0;
+      const currentPrice = (bull15m || bull1h || bull4h || bull1d).price;
+
+      return { 
+        symbol, 
+        price: currentPrice, 
+        bull15m,
+        bull1h,
+        bull4h,
+        bull1d,
+        matchCount,
+        priceChange24h,
+        quoteVolume24h
+      }; 
+    } catch {
       return null;
     }
+  } 
 
-    async function fetchSymbol(symbol, apiBase, limits) {
-      try {
-        const promises = [
-          fetch(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=15m&limit=\${limits.l15m}\`),
-          fetch(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`),
-          fetch(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=4h&limit=\${limits.l4h}\`),
-          fetch(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1d&limit=\${limits.l1d}\`)
-        ];
-        const results = await Promise.allSettled(promises);
-        if (results.some(r => r.status === 'rejected' || !r.value.ok)) return null;
-
-        const [res15m, res1h, res4h, res1d] = results.map(r => r.value);
-        const [klines15m, klines1h, klines4h, klines1d] = await Promise.all([
-          res15m.json(), res1h.json(), res4h.json(), res1d.json()
-        ]);
-
-        const bull15m = isBullishAlignment(klines15m);
-        const bull1h = isBullishAlignment(klines1h);
-        const bull4h = isBullishAlignment(klines4h);
-        const bull1d = isBullishAlignment(klines1d);
-
-        if (!bull15m && !bull1h && !bull4h && !bull1d) return null;
-
-        let matchCount = 0;
-        if (bull15m) matchCount++;
-        if (bull1h) matchCount++;
-        if (bull4h) matchCount++;
-        if (bull1d) matchCount++;
-
-        return { 
-          symbol, 
-          bull15m, bull1h, bull4h, bull1d, 
-          matchCount, 
-          currentPrice: (bull15m || bull1h || bull4h || bull1d).price,
-          rawKlines: { k15m: klines15m, k1h: klines1h, k4h: klines1h ? klines4h : klines4h, k1d: klines1d }
-        };
-      } catch {
-        return null;
-      }
+  async function batchProcess(items, limit, fn, onProgress) {
+    const results = [];
+    let completed = 0;
+    for (let i = 0; i < items.length; i += limit) {
+      const chunk = items.slice(i, i + limit);
+      const chunkResults = await Promise.all(chunk.map(item => fn(item)));
+      results.push(...chunkResults.filter(Boolean));
+      completed += chunk.length;
+      if (onProgress) onProgress(completed);
     }
-
-    self.onmessage = async function(e) {
-      const { symbols, apiBase, limits } = e.data;
-      const concurrency = 40; // 稍微調高效能併發量
-      let completed = 0;
-      const matches = [];
-
-      for (let i = 0; i < symbols.length; i += concurrency) {
-        const chunk = symbols.slice(i, i + concurrency);
-        const chunkResults = await Promise.all(chunk.map(sym => fetchSymbol(sym, apiBase, limits)));
-        chunkResults.filter(Boolean).forEach(res => matches.push(res));
-        completed += chunk.length;
-        self.postMessage({ type: 'progress', completed, total: symbols.length });
-      }
-
-      self.postMessage({ type: 'done', matches });
-    };
-  `;
+    return results;
+  }
 
   async function startScan() { 
     dom.scanBtn.disabled = true; 
-    dom.scanBtn.innerText = "⚡ 背景極速掃描中..."; 
+    dom.scanBtn.innerText = "⚡ 掃描中..."; 
     dom.symbolList.replaceChildren(); 
     dom.progress.style.width = '0%';
-    klinesCache.clear(); // 清空舊快取
 
     try {
       const res = await fetch(`${API_BASE}/fapi/v1/ticker/24hr`); 
@@ -455,7 +453,6 @@ canvas { display: block; width: 100%; height: 100%; }
       return;
     }
 
-    const MIN_VOLUME = 100000000;
     const candidateSymbols = Array.from(tickerMap.keys()).filter(sym => { 
       if (!sym.endsWith('USDT')) return false; 
       return parseFloat(tickerMap.get(sym).quoteVolume) > MIN_VOLUME; 
@@ -463,70 +460,32 @@ canvas { display: block; width: 100%; height: 100%; }
 
     dom.statTotal.innerText = candidateSymbols.length; 
 
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    const worker = new Worker(URL.createObjectURL(blob));
-
-    worker.postMessage({
-      symbols: candidateSymbols,
-      apiBase: API_BASE,
-      limits: {
-        l15m: FETCH_LIMIT_15M,
-        l1h: FETCH_LIMIT_1H,
-        l4h: FETCH_LIMIT_4H,
-        l1d: FETCH_LIMIT_1D
-      }
+    const allMatches = await batchProcess(candidateSymbols, CONCURRENCY_LIMIT, (sym) => fetchSymbolDetailsData(sym), (completed) => {
+      dom.progress.style.width = `${(completed / candidateSymbols.length) * 100}%`; 
     });
 
-    worker.onmessage = (e) => {
-      const { type, completed, total, matches } = e.data;
-      if (type === 'progress') {
-        dom.progress.style.width = `${(completed / total) * 100}%`;
-      } else if (type === 'done') {
-        worker.terminate();
+    results15M = allMatches.filter(m => m.bull15m);
+    results1H = allMatches.filter(m => m.bull1h);
+    results4H = allMatches.filter(m => m.bull4h);
+    results1D = allMatches.filter(m => m.bull1d);
+    resultsMulti = allMatches.filter(m => m.matchCount >= 2);
 
-        const allMatches = matches.map(m => {
-          const ticker = tickerMap.get(m.symbol);
-          
-          // 將 Worker 計算好的原始 K 線直接存入快取，完全省去點擊後再次發送網路請求的開銷
-          klinesCache.set(m.symbol, m.rawKlines);
+    const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
+    results15M.sort(sortByChange);
+    results1H.sort(sortByChange);
+    results4H.sort(sortByChange);
+    results1D.sort(sortByChange);
+    resultsMulti.sort(sortByChange);
 
-          return {
-            symbol: m.symbol,
-            price: m.currentPrice,
-            bull15m: m.bull15m,
-            bull1h: m.bull1h,
-            bull4h: m.bull4h,
-            bull1d: m.bull1d,
-            matchCount: m.matchCount,
-            priceChange24h: ticker ? parseFloat(ticker.priceChangePercent) : 0,
-            quoteVolume24h: ticker ? parseFloat(ticker.quoteVolume) : 0
-          };
-        });
+    dom.count15m.innerText = results15M.length;
+    dom.count1h.innerText = results1H.length;
+    dom.count4h.innerText = results4H.length;
+    dom.count1d.innerText = results1D.length;
+    dom.countMulti.innerText = resultsMulti.length;
 
-        results15M = allMatches.filter(m => m.bull15m);
-        results1H = allMatches.filter(m => m.bull1h);
-        results4H = allMatches.filter(m => m.bull4h);
-        results1D = allMatches.filter(m => m.bull1d);
-        resultsMulti = allMatches.filter(m => m.matchCount >= 2);
-
-        const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
-        results15M.sort(sortByChange);
-        results1H.sort(sortByChange);
-        results4H.sort(sortByChange);
-        results1D.sort(sortByChange);
-        resultsMulti.sort(sortByChange);
-
-        dom.count15m.innerText = results15M.length;
-        dom.count1h.innerText = results1H.length;
-        dom.count4h.innerText = results4H.length;
-        dom.count1d.innerText = results1D.length;
-        dom.countMulti.innerText = resultsMulti.length;
-
-        dom.scanBtn.disabled = false; 
-        dom.scanBtn.innerText = "啟動極速掃描"; 
-        renderList();
-      }
-    };
+    dom.scanBtn.disabled = false; 
+    dom.scanBtn.innerText = "啟動極速掃描"; 
+    renderList(); 
   } 
 
   function getCurrentList() {
@@ -602,6 +561,8 @@ canvas { display: block; width: 100%; height: 100%; }
     }); 
     dom.symbolList.replaceChildren(fragment); 
   } 
+
+  let activeChartController = null;
 
   function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, periodType) {
     const closesAll = klinesRaw.map(k => parseFloat(k[4]));
@@ -719,23 +680,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const vY = getYVol(vol);
       ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-      const checkAboveMAs5_30_45_60 = (closes, ma5, ma30, ma45, ma60, idx) => {
-        if (idx < 0 || idx >= closes.length) return false;
-        const price = closes[idx];
-        return (ma5[idx] !== null && price >= ma5[idx]) &&
-               (ma30[idx] !== null && price >= ma30[idx]) && 
-               (ma45[idx] !== null && price >= ma45[idx]) && 
-               (ma60[idx] !== null && price >= ma60[idx]);
-      };
-
-      const checkAboveMAs30_45_60 = (closes, ma30, ma45, ma60, idx) => {
-        if (idx < 0 || idx >= closes.length) return false;
-        const price = closes[idx];
-        return (ma30[idx] !== null && price >= ma30[idx]) && 
-               (ma45[idx] !== null && price >= ma45[idx]) && 
-               (ma60[idx] !== null && price >= ma60[idx]);
-      };
-
+      // ⚡ 閃電突破訊號判斷
       let isNowAbove = false;
       let isPrevAbove = false;
 
@@ -758,6 +703,30 @@ canvas { display: block; width: 100%; height: 100%; }
         const highY = getYPrice(high);
         ctx.fillText('⚡', x, highY - 2);
         ctx.restore();
+      }
+
+      // 🌡 量能升溫訊號：5VM > 20VM 交叉瞬間
+      const curVM5 = vm5All[absoluteIdx];
+      const curVM20 = vm20All[absoluteIdx];
+      const prevVM5 = vm5All[absoluteIdx - 1];
+      const prevVM20 = vm20All[absoluteIdx - 1];
+
+      if (curVM5 !== null && curVM20 !== null && prevVM5 !== null && prevVM20 !== null) {
+        const isNowGoldenCross = curVM5 > curVM20;
+        const isPrevGoldenCross = prevVM5 <= prevVM20;
+
+        if (isNowGoldenCross && isPrevGoldenCross) {
+          ctx.save();
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillStyle = '#ff9100';
+          ctx.shadowColor = '#ff9100';
+          ctx.shadowBlur = 6;
+          const vYPos = getYVol(vol);
+          ctx.fillText('🌡', x, vYPos - 2);
+          ctx.restore();
+        }
       }
     });
 
@@ -785,16 +754,35 @@ canvas { display: block; width: 100%; height: 100%; }
     drawLine(showVM20, '#9d4edd', getYVol, 0.9);
   }
 
-  function loadAndDrawCharts(symbol) {
-    updatePanelTags();
-    
-    // 直接從記憶體快取中讀取，零網路等待時間！
-    const cached = klinesCache.get(symbol);
-    if (cached) {
-      renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cached.k15m, COUNT_15M, '15m');
-      renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H, '1h');
-      renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cached.k4h, COUNT_4H, '4h');
-      renderCanvasChart(dom.canvas1d, dom.wrapper1d, ctx1d, cached.k1d, COUNT_1D, '1d');
+  let cachedKlines15m = null;
+  let cachedKlines1h = null;
+  let cachedKlines4h = null;
+  let cachedKlines1d = null;
+
+  async function loadAndDrawCharts(symbol) {
+    if (activeChartController) activeChartController.abort();
+    activeChartController = new AbortController();
+
+    try {
+      const [res15m, res1h, res4h, res1d] = await Promise.all([
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=15m&limit=${FETCH_LIMIT_15M}`, { signal: activeChartController.signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=${FETCH_LIMIT_1H}`, { signal: activeChartController.signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=${FETCH_LIMIT_4H}`, { signal: activeChartController.signal }),
+        fetch(`${API_BASE}/fapi/v1/klines?symbol=${symbol}&interval=1d&limit=${FETCH_LIMIT_1D}`, { signal: activeChartController.signal })
+      ]);
+
+      if (!res15m.ok || !res1h.ok || !res4h.ok || !res1d.ok) return;
+
+      cachedKlines15m = await res15m.json();
+      cachedKlines1h = await res1h.json();
+      cachedKlines4h = await res4h.json();
+      cachedKlines1d = await res1d.json();
+
+      updatePanelTags();
+      redrawAllPanels();
+
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error(err);
     }
   }
 
@@ -803,6 +791,13 @@ canvas { display: block; width: 100%; height: 100%; }
     dom.tagText1h.innerText = `1H (${COUNT_1H})`;
     dom.tagText4h.innerText = `4H (${COUNT_4H})`;
     dom.tagText1d.innerText = `1D (${COUNT_1D})`;
+  }
+
+  function redrawAllPanels() {
+    if (cachedKlines15m) renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cachedKlines15m, COUNT_15M, '15m');
+    if (cachedKlines1h) renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cachedKlines1h, COUNT_1H, '1h');
+    if (cachedKlines4h) renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cachedKlines4h, COUNT_4H, '4h');
+    if (cachedKlines1d) renderCanvasChart(dom.canvas1d, dom.wrapper1d, ctx1d, cachedKlines1d, COUNT_1D, '1d');
   }
 
   function openChartModal(index) {
@@ -821,6 +816,7 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function closeChartModal() {
+    if (activeChartController) activeChartController.abort();
     dom.chartModal.classList.remove('active');
     dom.chartModal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
@@ -888,17 +884,14 @@ canvas { display: block; width: 100%; height: 100%; }
     else if (e.key === 'ArrowRight') navigateSymbol(1);
   });
 
-  let resizeRaf = null;
+  let resizeTimer = null;
   window.addEventListener('resize', () => {
-    if (resizeRaf) cancelAnimationFrame(resizeRaf);
-    resizeRaf = requestAnimationFrame(() => {
-      if (dom.chartModal.classList.contains('active') && currentIndex !== -1) {
-        const currentList = getCurrentList();
-        if (currentList[currentIndex]) {
-          loadAndDrawCharts(currentList[currentIndex].symbol);
-        }
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (dom.chartModal.classList.contains('active')) {
+        redrawAllPanels();
       }
-    });
+    }, 150);
   });
 })();
 </script> 
