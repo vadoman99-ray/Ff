@@ -437,7 +437,7 @@ canvas { display: block; width: 100%; height: 100%; }
             ]);
             const bull15m = isBullishAlignment(klines15m);
             const bull1h = isBullishAlignment(klines1h);
-            const bull4h = isBullishAlignment(klines4h);
+            const bull4h = isBullishAlignment(klines1h ? klines4h : klines4h); // simplified
             const bull1d = isBullishAlignment(klines1d);
             if (!bull15m && !bull1h && !bull4h && !bull1d) return null;
             let matchCount = 0;
@@ -718,8 +718,8 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.fillText(formatVol(maxVol), width - padding.right + 3, volTop + 6);
 
         // 繪製垂直虛線：
-        // 1D 維持每週一 00:00 UTC (亮青色)
-        // 4H、1H、15M 同時支援每日 00:00 UTC (亮青色) 以及每週一 00:00 UTC (亮紫色)
+        // 1D: 每週一 00:00 UTC 改為明顯的亮紫色 (rgba(157, 78, 221, 0.85)，加粗線條)
+        // 4H、1H、15M: 保留每週一 00:00 UTC 亮紫色、每日 00:00 UTC 亮青色
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
@@ -728,10 +728,10 @@ canvas { display: block; width: 100%; height: 100%; }
             const isDailyStart = (date.getUTCHours() === 0 && date.getUTCMinutes() === 0);
 
             if (periodType === '1d') {
-                // 1D: 僅在每週一 00:00 畫亮青色虛線
+                // 1D: 每週一 00:00 畫高對比、明顯的亮紫色虛線
                 if (isMondayStart) {
-                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
-                    ctx.lineWidth = 1.2;
+                    ctx.strokeStyle = 'rgba(157, 78, 221, 0.9)'; // 更明顯的亮紫色
+                    ctx.lineWidth = 1.6; // 加粗
                     ctx.setLineDash([3, 3]);
                     const x = padding.left + i * barWidth + barWidth / 2;
                     ctx.beginPath();
@@ -741,10 +741,8 @@ canvas { display: block; width: 100%; height: 100%; }
                 }
             } else {
                 // 4H, 1H, 15M:
-                // 先判斷是否為每週一 00:00 -> 畫亮紫色虛線
-                // 否則若為每日 00:00 -> 畫亮青色虛線
                 if (isMondayStart) {
-                    ctx.strokeStyle = 'rgba(157, 78, 221, 0.75)'; // 亮紫色 (搭配 var(--manga-purple))
+                    ctx.strokeStyle = 'rgba(157, 78, 221, 0.75)'; // 亮紫色
                     ctx.lineWidth = 1.5;
                     ctx.setLineDash([3, 3]);
                     const x = padding.left + i * barWidth + barWidth / 2;
@@ -970,7 +968,7 @@ canvas { display: block; width: 100%; height: 100%; }
             if (dom.chartModal.classList.contains('active') && currentIndex !== -1) {
                 const currentList = getCurrentList();
                 if (currentList[currentIndex]) {
-                    loadAndDropChartsIfNeeded: loadAndDrawCharts(currentList[currentIndex].symbol);
+                    loadAndDrawCharts(currentList[currentIndex].symbol);
                 }
             }
         });
