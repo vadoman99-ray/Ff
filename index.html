@@ -1,48 +1,518 @@
-klines.forEach((kline, i) => {
-    const timestamp = kline[0]; // K 線開盤時間 (ms)
-    const date = new Date(timestamp);
-    const dayOfWeek = date.getUTCDay(); // 0 = 週日, 1 = 週一 ... 6 = 週六
-    const hour = date.getUTCHours();
-    const minute = date.getUTCMinutes();
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幣安合約多頭排列與共振掃描儀</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .modal-open { overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-6">
 
-    let isLineTime = false;
-    let lineColor = 'rgba(0, 240, 255, 0.35)'; // 預設明顯亮青色
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- 頂部控制面板 -->
+        <header class="flex flex-col md:flex-row justify-between items-center bg-[#161b22] p-4 rounded-xl border border-gray-800 shadow-lg gap-4">
+            <div>
+                <h1 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span>⚡</span> 幣安多頭排列與週期共振掃描儀
+                </h1>
+                <p class="text-xs text-gray-400 mt-1">自動過濾 24hr 成交額 > 1億 USDT 之高流動性合約標的</p>
+            </div>
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <button id="scanBtn" onclick="startScan()" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2.5 rounded-lg transition-all shadow-md active:scale-95">
+                    開始掃描市場
+                </button>
+            </div>
+        </header>
 
-    if (timeframe === '1d') {
-        // 【日週期】：每 1 週區間（每週一 00:00 UTC）畫一條，強制使用黃色
-        if (dayOfWeek === 1 && hour === 0 && minute === 0) {
-            isLineTime = true;
-            lineColor = 'rgba(255, 220, 0, 0.75)'; // 明顯黃色
-        }
-    } else if (timeframe === '4h') {
-        // 【4小時】：每 1 日區間（每日 00:00 UTC）畫一條
-        if (hour === 0 && minute === 0) {
-            isLineTime = true;
-            lineColor = 'rgba(0, 240, 255, 0.4)'; // 明顯亮青色
-        }
-    } else if (timeframe === '1h' || timeframe === '15m') {
-        // 【1小時 / 15分】：每 1 日區間（每日 00:00 UTC）畫一條
-        if (hour === 0 && minute === 0) {
-            isLineTime = true;
-            // 該日若為週一，則該條日虛線改用黃色
-            if (dayOfWeek === 1) {
-                lineColor = 'rgba(255, 220, 0, 0.7)'; // 週一用黃色
-            } else {
-                lineColor = 'rgba(0, 240, 255, 0.35);'; // 一般日用明顯亮青色
+        <!-- 狀態與進度列 -->
+        <div id="statusBox" class="hidden bg-[#161b22] p-4 rounded-xl border border-gray-800 text-sm flex items-center justify-between">
+            <span id="statusText" class="text-cyan-400">正在準備掃描...</span>
+            <div id="progressBarContainer" class="w-1/2 bg-gray-800 rounded-full h-2 overflow-hidden">
+                <div id="progressBar" class="bg-cyan-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+        </div>
+
+        <!-- 分頁導航 -->
+        <div id="tabNav" class="hidden flex flex-wrap gap-2 border-b border-gray-800 pb-2">
+            <button onclick="switchTab('resonance')" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm bg-cyan-600 text-white transition-all" data-tab="resonance">🔥 強勢共振</button>
+            <button onclick="switchTab('1d')" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all" data-tab="1d">⚡ 1D 日線</button>
+            <button onclick="switchTab('4h')" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all" data-tab="4h">⚡ 4H</button>
+            <button onclick="switchTab('1h')" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all" data-tab="1h">⚡ 1H</button>
+            <button onclick="switchTab('15m')" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all" data-tab="15m">⚡ 15M</button>
+        </div>
+
+        <!-- 標的清單容器 -->
+        <div id="cardGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div class="col-span-full text-center py-20 text-gray-500 bg-[#161b22] rounded-xl border border-gray-800">
+                尚未掃描，請點擊上方「開始掃描市場」按鈕
+            </div>
+        </div>
+    </div>
+
+    <!-- 互動圖表彈跳視窗 (Modal) -->
+    <div id="chartModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex flex-col justify-center p-2 md:p-6">
+        <div class="bg-[#161b22] w-full max-w-7xl h-[92vh] mx-auto rounded-2xl border border-gray-800 flex flex-col overflow-hidden shadow-2xl">
+            <!-- 彈窗頂部列 -->
+            <div class="flex justify-between items-center px-6 py-4 border-b border-gray-800 bg-[#0d1117]">
+                <div class="flex items-center gap-4">
+                    <h2 id="modalSymbol" class="text-xl font-bold text-white">BTCUSDT</h2>
+                    <span id="modalPrice" class="text-emerald-400 font-mono font-semibold">--</span>
+                    <span id="modalResonanceBadge" class="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 hidden">多週期共振</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-gray-400 hidden sm:inline">提示：可使用鍵盤 ← / → 切換標的，Esc 關閉</span>
+                    <button onclick="closeChartModal()" class="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 p-2 rounded-lg transition-all text-sm font-bold">✕ 關閉</button>
+                </div>
+            </div>
+
+            <!-- 四週期 Canvas 畫布群 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 flex-1 gap-2 p-3 bg-[#0b0e14] overflow-y-auto">
+                <div class="bg-[#161b22] rounded-xl border border-gray-800 p-3 flex flex-col">
+                    <div class="flex justify-between items-center mb-1 text-xs text-gray-400 font-semibold">
+                        <span>1D 日線級別</span>
+                        <span id="badge-1d" class="text-gray-500">未達成</span>
+                    </div>
+                    <div class="flex-1 relative min-h-[180px]"><canvas id="canvas-1d"></canvas></div>
+                </div>
+                <div class="bg-[#161b22] rounded-xl border border-gray-800 p-3 flex flex-col">
+                    <div class="flex justify-between items-center mb-1 text-xs text-gray-400 font-semibold">
+                        <span>4H 四小時級別</span>
+                        <span id="badge-4h" class="text-gray-500">未達成</span>
+                    </div>
+                    <div class="flex-1 relative min-h-[180px]"><canvas id="canvas-4h"></canvas></div>
+                </div>
+                <div class="bg-[#161b22] rounded-xl border border-gray-800 p-3 flex flex-col">
+                    <div class="flex justify-between items-center mb-1 text-xs text-gray-400 font-semibold">
+                        <span>1H 一小時級別</span>
+                        <span id="badge-1h" class="text-gray-500">未達成</span>
+                    </div>
+                    <div class="flex-1 relative min-h-[180px]"><canvas id="canvas-1h"></canvas></div>
+                </div>
+                <div class="bg-[#161b22] rounded-xl border border-gray-800 p-3 flex flex-col">
+                    <div class="flex justify-between items-center mb-1 text-xs text-gray-400 font-semibold">
+                        <span>15M 十五分級別</span>
+                        <span id="badge-15m" class="text-gray-500">未達成</span>
+                    </div>
+                    <div class="flex-1 relative min-h-[180px]"><canvas id="canvas-15m"></canvas></div>
+                </div>
+            </div>
+
+            <!-- 彈窗底部切換控制 -->
+            <div class="flex justify-between items-center px-6 py-3 border-t border-gray-800 bg-[#0d1117]">
+                <button onclick="navigateModal(-1)" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-1.5 rounded-lg text-sm transition-all">← 上一檔</button>
+                <span id="modalIndexIndicator" class="text-xs text-gray-400 font-mono">1 / 1</span>
+                <button onclick="navigateModal(1)" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-1.5 rounded-lg text-sm transition-all">下一檔 →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 內嵌 Web Worker Script -->
+    <script id="workerScript" type="worker">
+        self.onmessage = async function(e) {
+            const { symbols } = e.data;
+            const timeframes = ['15m', '1h', '4h', '1d'];
+            let results = [];
+            let completed = 0;
+
+            const fetchKline = async (symbol, tf) => {
+                try {
+                    const res = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${tf}&limit=100`);
+                    if (!res.ok) return null;
+                    return await res.json();
+                } catch {
+                    return null;
+                }
+            };
+
+            const calculateSMA = (data, period) => {
+                let smas = [];
+                for (let i = 0; i < data.length; i++) {
+                    if (i < period - 1) {
+                        smas.push(null);
+                        continue;
+                    }
+                    let sum = 0;
+                    for (let j = 0; j < period; j++) {
+                        sum += parseFloat(data[i - j][4]); // Close price
+                    }
+                    smas.push(sum / period);
+                }
+                return smas;
+            };
+
+            const analyzeTfData = (klines) => {
+                if (!klines || klines.length < 65) return { bullish: false, breakout: false, ma3Dist: 0 };
+                const closes = klines.map(k => parseFloat(k[4]));
+                const ma30 = calculateSMA(klines, 30);
+                const ma45 = calculateSMA(klines, 45);
+                const ma60 = calculateSMA(klines, 60);
+
+                const len = klines.length;
+                const curIdx = len - 1;
+                const prevIdx = len - 2;
+
+                const checkBullish = (idx) => {
+                    const p = closes[idx];
+                    const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
+                    if (!m30 || !m45 || !m60) return false;
+                    return p >= m60 && m30 > m45 && m45 > m60;
+                };
+
+                const currentBullish = checkBullish(curIdx);
+                const prevBullish = checkBullish(prevIdx);
+                const breakout = currentBullish && !prevBullish;
+                const ma3Dist = ((closes[curIdx] - ma60[curIdx]) / ma60[curIdx]) * 100;
+
+                return { bullish: currentBullish, breakout, ma3Dist };
+            };
+
+            // 分批平行處理
+            const chunkSize = 20;
+            for (let i = 0; i < symbols.length; i += chunkSize) {
+                const chunk = symbols.slice(i, i + chunkSize);
+                const promises = chunk.map(async (item) => {
+                    const symbol = item.symbol;
+                    const tfData = {};
+                    let bullishCount = 0;
+                    let hasBreakout = false;
+
+                    for (const tf of timeframes) {
+                        const klines = await fetchKline(symbol, tf);
+                        const analysis = analyzeTfData(klines);
+                        tfData[tf] = { klines, analysis };
+                        if (analysis.bullish) bullishCount++;
+                        if (analysis.breakout) hasBreakout = true;
+                    }
+
+                    completed++;
+                    self.postMessage({ type: 'progress', progress: (completed / symbols.length) * 100 });
+
+                    if (bullishCount > 0) {
+                        return {
+                            symbol,
+                            priceChangePercent: item.priceChangePercent,
+                            lastPrice: item.lastPrice,
+                            quoteVolume: item.quoteVolume,
+                            bullishCount,
+                            hasBreakout,
+                            tfData
+                        };
+                    }
+                    return null;
+                });
+
+                const chunkResults = await Promise.all(promises);
+                results.push(...chunkResults.filter(r => r !== null));
+            }
+
+            self.postMessage({ type: 'complete', results });
+        };
+    </script>
+
+    <!-- 主程式邏輯 -->
+    <script>
+        let scanResults = [];
+        let currentTab = 'resonance';
+        let currentModalIndex = 0;
+        let activeModalSymbols = [];
+
+        async function startScan() {
+            const btn = document.getElementById('scanBtn');
+            const statusBox = document.getElementById('statusBox');
+            const statusText = document.getElementById('statusText');
+            const progressBar = document.getElementById('progressBar');
+            const tabNav = document.getElementById('tabNav');
+            const cardGrid = document.getElementById('cardGrid');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            statusBox.classList.remove('hidden');
+            statusText.innerText = '正在向幣安取得 24 小時行情清單...';
+            progressBar.style.width = '5%';
+
+            try {
+                const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+                const tickers = await res.json();
+
+                // 過濾 USDT 且 24hr 成交額 > 1 億 USDT
+                const validSymbols = tickers
+                    .filter(t => t.symbol.endsWith('USDT') && parseFloat(t.quoteVolume) > 100000000)
+                    .map(t => ({ symbol: t.symbol, priceChangePercent: parseFloat(t.priceChangePercent), lastPrice: t.lastPrice, quoteVolume: parseFloat(t.quoteVolume) }));
+
+                statusText.innerText = `篩選出 ${validSymbols.length} 檔高流動性標的，背景多執行緒平行運算中...`;
+
+                // 建立 Web Worker
+                const blob = new Blob([document.getElementById('workerScript').innerText], { type: 'text/javascript' });
+                const worker = new Worker(URL.createObjectURL(blob));
+
+                worker.postMessage({ symbols: validSymbols });
+
+                worker.onmessage = function(e) {
+                    if (e.data.type === 'progress') {
+                        progressBar.style.width = `${Math.round(e.data.progress)}%`;
+                    } else if (e.data.type === 'complete') {
+                        scanResults = e.data.results;
+                        // 依照漲跌幅排序
+                        scanResults.sort((a, b) => b.priceChangePercent - a.priceChangePercent);
+
+                        statusBox.classList.add('hidden');
+                        tabNav.classList.remove('hidden');
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                        renderList();
+                    }
+                };
+
+            } catch (err) {
+                console.error(err);
+                statusText.innerText = '掃描失敗，請檢查網路連線或稍後再試。';
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         }
-    }
 
-    if (isLineTime) {
-        const x = getXCoordinate(i);
-        ctx.save();
-        ctx.strokeStyle = lineColor;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]); // 虛線樣式
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, chartHeight);
-        ctx.stroke();
-        ctx.restore();
-    }
-});
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if (btn.dataset.tab === tab) {
+                    btn.className = "tab-btn px-4 py-2 rounded-lg font-medium text-sm bg-cyan-600 text-white transition-all";
+                } else {
+                    btn.className = "tab-btn px-4 py-2 rounded-lg font-medium text-sm bg-gray-800 text-gray-300 hover:bg-gray-700 transition-all";
+                }
+            });
+            renderList();
+        }
+
+        function renderList() {
+            const cardGrid = document.getElementById('cardGrid');
+            let filtered = [];
+
+            if (currentTab === 'resonance') {
+                filtered = scanResults.filter(item => item.bullishCount >= 2);
+            } else {
+                filtered = scanResults.filter(item => item.tfData[currentTab] && item.tfData[currentTab].analysis.bullish);
+            }
+
+            activeModalSymbols = filtered.map(item => item.symbol);
+
+            if (filtered.length === 0) {
+                cardGrid.innerHTML = `
+                    <div class="col-span-full text-center py-20 text-gray-500 bg-[#161b22] rounded-xl border border-gray-800">
+                        目前分類下無符合條件的標的
+                    </div>
+                `;
+                return;
+            }
+
+            cardGrid.innerHTML = filtered.map((item, index) => {
+                const changeColor = item.priceChangePercent >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                const sign = item.priceChangePercent >= 0 ? '+' : '';
+                return `
+                    <div onclick="openChartModal(${index})" class="bg-[#161b22] hover:bg-[#1f242c] transition-all border border-gray-800 hover:border-gray-700 rounded-xl p-4 cursor-pointer flex flex-col justify-between shadow-md group">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-bold text-white text-base group-hover:text-cyan-400 transition-colors">${item.symbol}</span>
+                                ${item.bullishCount >= 2 ? '<span class="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30">🔥 共振 (' + item.bullishCount + ')</span>' : ''}
+                            </div>
+                            <div class="text-lg font-mono text-gray-200 mb-1">${item.lastPrice}</div>
+                            <div class="text-xs ${changeColor} font-mono font-semibold">${sign}${item.priceChangePercent.toFixed(2)}%</div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-gray-800/80 flex justify-between items-center text-xs text-gray-400">
+                            <span>成交額: ${(item.quoteVolume / 1000000).toFixed(1)}M</span>
+                            <span class="text-cyan-400">查看圖表 →</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openChartModal(index) {
+            currentModalIndex = index;
+            const symbol = activeModalSymbols[index];
+            const data = scanResults.find(r => r.symbol === symbol);
+            if (!data) return;
+
+            document.getElementById('chartModal').classList.remove('hidden');
+            document.body.classList.add('modal-open');
+            document.getElementById('modalSymbol').innerText = data.symbol;
+            document.getElementById('modalPrice').innerText = data.lastPrice;
+            document.getElementById('modalIndexIndicator').innerText = `${currentModalIndex + 1} / ${activeModalSymbols.length}`;
+
+            const badge = document.getElementById('modalResonanceBadge');
+            if (data.bullishCount >= 2) {
+                badge.classList.remove('hidden');
+                badge.innerText = `多週期共振 (${data.bullishCount}個週期)`;
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            ['1d', '4h', '1h', '15m'].forEach(tf => {
+                renderCanvasChart(tf, data.tfData[tf]);
+            });
+        }
+
+        function closeChartModal() {
+            document.getElementById('chartModal').classList.add('hidden');
+            document.body.classList.remove('modal-open');
+        }
+
+        function navigateModal(direction) {
+            currentModalIndex += direction;
+            if (currentModalIndex < 0) currentModalIndex = activeModalSymbols.length - 1;
+            if (currentModalIndex >= activeModalSymbols.length) currentModalIndex = 0;
+            openChartModal(currentModalIndex);
+        }
+
+        // 核心 Canvas 繪圖與指定虛線條件邏輯
+        function renderCanvasChart(timeframe, tfObj) {
+            const canvas = document.getElementById(`canvas-${timeframe}`);
+            const badge = document.getElementById(`badge-${timeframe}`);
+            const ctx = canvas.getContext('2d');
+
+            const analysis = tfObj.analysis;
+            if (analysis.bullish) {
+                badge.innerText = analysis.breakout ? '⚡ 剛突破' : '多頭排列';
+                badge.className = analysis.breakout ? 'text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30' : 'text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30';
+            } else {
+                badge.innerText = '未達成';
+                badge.className = 'text-gray-500';
+            }
+
+            const klines = tfObj.klines;
+            if (!klines || klines.length === 0) return;
+
+            // DPR 高畫質適應
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            const width = rect.width;
+            const height = rect.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const closes = klines.map(k => parseFloat(k[4]));
+            const highs = klines.map(k => parseFloat(k[2]));
+            const lows = klines.map(k => parseFloat(k[3]));
+            const volumes = klines.map(k => parseFloat(k[5]));
+
+            const minPrice = Math.min(...lows);
+            const maxPrice = Math.max(...highs);
+            const priceRange = maxPrice - minPrice || 1;
+
+            const maxVol = Math.max(...volumes) || 1;
+
+            // 版面配置比例：主圖 65%，副圖 25%，保留上下 padding
+            const mainChartHeight = height * 0.62;
+            const volChartHeight = height * 0.22;
+            const topPadding = 15;
+            const volTop = height - volChartHeight - 10;
+
+            const candleWidth = width / klines.length;
+
+            const getX = (i) => i * candleWidth + candleWidth / 2;
+            const getY = (price) => topPadding + (maxPrice - price) / priceRange * (mainChartHeight - topPadding);
+
+            // ==================== 繪製垂直虛線條件與色彩邏輯 ====================
+            klines.forEach((kline, i) => {
+                const timestamp = kline[0];
+                const date = new Date(timestamp);
+                const dayOfWeek = date.getUTCDay(); // 0 = 週日, 1 = 週一 ... 6 = 週六
+                const hour = date.getUTCHours();
+                const minute = date.getUTCMinutes();
+
+                let isLineTime = false;
+                let lineColor = 'rgba(0, 240, 255, 0.35)'; // 預設明顯亮青色
+
+                if (timeframe === '1d') {
+                    // 【日週期】：每 1 週區間（每週一 00:00 UTC）畫一條，使用黃色
+                    if (dayOfWeek === 1 && hour === 0 && minute === 0) {
+                        isLineTime = true;
+                        lineColor = 'rgba(255, 220, 0, 0.75)'; // 明顯黃色
+                    }
+                } else if (timeframe === '4h') {
+                    // 【4小時】：每 1 日區間（每日 00:00 UTC）畫一條
+                    if (hour === 0 && minute === 0) {
+                        isLineTime = true;
+                        lineColor = 'rgba(0, 240, 255, 0.4)'; // 亮青色
+                    }
+                } else if (timeframe === '1h' || timeframe === '15m') {
+                    // 【1小時 / 15分】：每 1 日區間（每日 00:00 UTC）畫一條
+                    if (hour === 0 && minute === 0) {
+                        isLineTime = true;
+                        // 若該日剛好是週一，該條日虛線改用黃色
+                        if (dayOfWeek === 1) {
+                            lineColor = 'rgba(255, 220, 0, 0.7)'; // 週一黃色
+                        } else {
+                            lineColor = 'rgba(0, 240, 255, 0.35);'; // 一般日亮青色
+                        }
+                    }
+                }
+
+                if (isLineTime) {
+                    const x = getX(i);
+                    ctx.save();
+                    ctx.strokeStyle = lineColor;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, height);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+
+            // 繪製 K 線與成交量
+            klines.forEach((kline, i) => {
+                const open = parseFloat(kline[1]);
+                const high = parseFloat(kline[2]);
+                const low = parseFloat(kline[3]);
+                const close = parseFloat(kline[4]);
+                const vol = parseFloat(kline[5]);
+
+                const x = getX(i);
+                const isGreen = close >= open;
+                const color = isGreen ? '#10b981' : '#f43f5e';
+
+                // 影線
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x, getY(high));
+                ctx.lineTo(x, getY(low));
+                ctx.stroke();
+
+                // 實體
+                const bodyTop = getY(Math.max(open, close));
+                const bodyBottom = getY(Math.min(open, close));
+                const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
+                ctx.fillStyle = color;
+                ctx.fillRect(x - candleWidth * 0.35, bodyTop, candleWidth * 0.7, bodyHeight);
+
+                // 成交量柱狀圖
+                const volH = (vol / maxVol) * volChartHeight;
+                const volY = volTop + volChartHeight - volH;
+                ctx.fillStyle = isGreen ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)';
+                ctx.fillRect(x - candleWidth * 0.35, volY, candleWidth * 0.7, volH);
+            });
+        }
+
+        // 鍵盤事件支援
+        window.addEventListener('keydown', (e) => {
+            if (document.getElementById('chartModal').classList.contains('hidden')) return;
+            if (e.key === 'Escape') closeChartModal();
+            if (e.key === 'ArrowLeft') navigateModal(-1);
+            if (e.key === 'ArrowRight') navigateModal(1);
+        });
+    </script>
+</body>
+</html>
