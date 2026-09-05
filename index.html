@@ -690,26 +690,21 @@ canvas { display: block; width: 100%; height: 100%; }
     const formatVol = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : (v / 1e3).toFixed(0) + 'K';
     ctx.fillText(formatVol(maxVol), width - padding.right + 3, volTop + 6);
 
-    // 繪製對應區間的「週期垂直虛線」條件
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.setLineDash([2, 2]); // 設定虛線樣式
+    // 繪製垂直虛線（使用明顯的亮青色與設定線寬）
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([3, 3]); 
     showK.forEach((k, i) => {
       const timestamp = parseInt(k[0]);
       const date = new Date(timestamp);
       let isBoundary = false;
 
-      if (periodType === '15m') {
-        // 15分在1小時區間 (每小時整點畫虛線)
-        if (date.getUTCMinutes() === 0) isBoundary = true;
-      } else if (periodType === '1h') {
-        // 1小時在4小時區間 (每4小時整點畫虛線)
-        if (date.getUTCHours() % 4 === 0 && date.getUTCMinutes() === 0) isBoundary = true;
-      } else if (periodType === '4h') {
-        // 4小時在1日區間 (每日00:00畫虛線)
-        if (date.getUTCHours() === 0 && date.getUTCMinutes() === 0) isBoundary = true;
-      } else if (periodType === '1d') {
+      if (periodType === '1d') {
         // 日週期在1週區間 (每週一 00:00畫虛線)
         if (date.getUTCDay() === 1 && date.getUTCHours() === 0) isBoundary = true;
+      } else {
+        // 4小時、1小時、15分在1日區間 (每日 00:00 畫虛線)
+        if (date.getUTCHours() === 0 && date.getUTCMinutes() === 0) isBoundary = true;
       }
 
       if (isBoundary) {
@@ -720,7 +715,8 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.stroke();
       }
     });
-    ctx.setLineDash([]); //還原實線設定
+    ctx.setLineDash([]); // 還原實線設定
+    ctx.lineWidth = 1;
 
     // 繪製 K 線與量能柱
     showK.forEach((k, i) => {
