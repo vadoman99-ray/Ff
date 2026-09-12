@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>⚡ 極速多週期多頭排列與SMC/MACD儀表板 (>1億USDT)</title>
+<title>⚡ 極速多週期多頭排列儀表板 (>1億USDT)</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap');
 :root {
@@ -45,7 +45,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 }
 .header-top { display: flex; justify-content: space-between; align-items: center; }
 .header-title {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 900;
     letter-spacing: -0.5px;
     background: linear-gradient(135deg, #fff 30%, var(--manga-cyan));
@@ -72,12 +72,12 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .scan-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
 .progress-container { height: 3px; background: rgba(255, 255, 255, 0.05); width: 100%; }
 .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.05s linear; }
-.tab-container { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; padding: 0 8px; margin-top: 12px; }
+.tab-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding: 0 12px; margin-top: 12px; }
 .tab-btn {
-    padding: 8px 1px;
-    border-radius: 6px;
+    padding: 8px 2px;
+    border-radius: 8px;
     font-weight: 800;
-    font-size: 0.55rem;
+    font-size: 0.65rem;
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #94a3b8;
@@ -93,28 +93,6 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     border-color: var(--manga-cyan);
     color: #fff;
     box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
-}
-.tab-btn.macd-tab {
-    background: rgba(0, 255, 102, 0.1);
-    border-color: rgba(0, 255, 102, 0.3);
-    color: var(--manga-green);
-}
-.tab-btn.macd-tab.active {
-    background: rgba(0, 255, 102, 0.25);
-    border-color: var(--manga-green);
-    color: #fff;
-    box-shadow: 0 0 12px rgba(0, 255, 102, 0.4);
-}
-.tab-btn.smc-tab {
-    background: rgba(157, 78, 221, 0.1);
-    border-color: rgba(157, 78, 221, 0.3);
-    color: var(--manga-purple);
-}
-.tab-btn.smc-tab.active {
-    background: rgba(157, 78, 221, 0.25);
-    border-color: var(--manga-purple);
-    color: #fff;
-    box-shadow: 0 0 12px rgba(157, 78, 221, 0.4);
 }
 .tab-btn.low-risk {
     background: rgba(255, 234, 0, 0.15);
@@ -163,8 +141,6 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .badge-rank { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 255, 255, 0.1); color: #fff; }
 .badge-bull { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(0, 255, 102, 0.15); color: var(--manga-green); border: 1px solid var(--manga-green); }
 .badge-multi { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 0, 127, 0.15); color: var(--manga-pink); border: 1px solid var(--manga-pink); }
-.badge-macd { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(0, 255, 102, 0.2); color: var(--manga-green); border: 1px solid var(--manga-green); }
-.badge-smc { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(157, 78, 221, 0.2); color: var(--manga-purple); border: 1px solid var(--manga-purple); }
 .badge-lowrisk { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 234, 0, 0.2); color: var(--manga-yellow); border: 1px solid var(--manga-yellow); }
 .val-up { color: var(--manga-green); }
 .val-down { color: var(--manga-red); }
@@ -207,51 +183,12 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     flex-shrink: 0;
     z-index: 2;
 }
-.header-title-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.header-title-group { display: flex; align-items: center; gap: 6px; }
 .symbol-title { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 800; color: #fff; }
 .symbol-rank-tag { font-size: 0.65rem; color: var(--manga-cyan); font-weight: 800; }
-.legend-bar { display: flex; gap: 4px; font-size: 0.55rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; align-items: center; }
+.legend-bar { display: flex; gap: 4px; font-size: 0.55rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 2px; }
 .legend-color { width: 5px; height: 5px; border-radius: 2px; }
-.dom-badge-box {
-    background: rgba(0, 240, 255, 0.1);
-    border: 1px solid var(--manga-cyan);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 0.6rem;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--manga-cyan);
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.kd-badge-box {
-    background: rgba(0, 255, 102, 0.15);
-    border: 1px solid var(--manga-green);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 0.6rem;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--manga-green);
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.smc-badge-box {
-    background: rgba(157, 78, 221, 0.15);
-    border: 1px solid var(--manga-purple);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 0.6rem;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--manga-purple);
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
 .close-btn {
     background: rgba(255,255,255,0.08);
     color: #a0aec0;
@@ -299,14 +236,14 @@ canvas { display: block; width: 100%; height: 100%; }
     .symbol-title { font-size: 0.8rem; }
     .legend-bar { font-size: 0.5rem; gap: 3px; }
     .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
-    .tab-btn { font-size: 0.48rem; padding: 6px 0px; }
+    .tab-btn { font-size: 0.55rem; padding: 6px 1px; }
 }
 </style>
 </head>
 <body>
 <div class="app-header">
     <div class="header-top">
-        <div class="header-title">⚡ 全週期 MACD & SMC 儀表板 (>1億USDT)</div>
+        <div class="header-title">⚡ 多週期多頭排列儀表板 (>1億USDT)</div>
         <button id="scanBtn" class="scan-btn">啟動極速掃描</button>
     </div>
 </div>
@@ -315,11 +252,8 @@ canvas { display: block; width: 100%; height: 100%; }
     <button id="tab15m" class="tab-btn active">⚡15M(<span id="count15m">0</span>)</button>
     <button id="tab1h" class="tab-btn">⚡1H(<span id="count1h">0</span>)</button>
     <button id="tab4h" class="tab-btn">⚡4H(<span id="count4h">0</span>)</button>
-    <button id="tab1d" class="tab-btn">⚡1D(<span id="count1d">0</span>)</button>
-    <button id="tabMacd" class="tab-btn macd-tab">⚡ALL.MACD(<span id="countMacd">0</span>)</button>
-    <button id="tabSmc" class="tab-btn smc-tab">🏛️ALL.SMC(<span id="countSmc">0</span>)</button>
     <button id="tabMulti" class="tab-btn">🔥共振(<span id="countMulti">0</span>)</button>
-    <button id="tabLowRisk" class="tab-btn low-risk">⭐精選(<span id="countLowRisk">0</span>)</button>
+    <button id="tabLowRisk" class="tab-btn low-risk">⭐閃電精選(<span id="countLowRisk">0</span>)</button>
 </div>
 <div class="dashboard">
     <div class="stat-card">
@@ -341,15 +275,13 @@ canvas { display: block; width: 100%; height: 100%; }
             <div class="header-title-group">
                 <span id="symbolRankTag" class="symbol-rank-tag">#1</span>
                 <div id="symbolTitle" class="symbol-title">BTCUSDT</div>
-                <div id="domSignalBadge" class="dom-badge-box">DOM: 連線中...</div>
-                <div id="kdSignalBadge" class="kd-badge-box">MACD: 計算中...</div>
-                <div id="smcSignalBadge" class="smc-badge-box">SMC: 計算中...</div>
             </div>
             <div class="legend-bar">
                 <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60布林軌</div>
                 <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>5VM</div>
                 <div class="legend-item"><div class="legend-color" style="background:#9d4edd"></div>20VM</div>
             </div>
@@ -368,10 +300,6 @@ canvas { display: block; width: 100%; height: 100%; }
                 <span class="panel-tag" id="tagText4h">4H</span>
                 <canvas id="klineCanvas4h"></canvas>
             </div>
-            <div class="chart-panel" id="wrapper1d" data-period="1d">
-                <span class="panel-tag" id="tagText1d">1D</span>
-                <canvas id="klineCanvas1d"></canvas>
-            </div>
         </div>
     </div>
 </div>
@@ -379,31 +307,25 @@ canvas { display: block; width: 100%; height: 100%; }
 <script>
 (() => {
     const API_BASE = 'https://fapi.binance.com';
-    const P0 = 5, P1 = 30, P2 = 45, P3 = 60;
-    const COUNT_15M = 240;
-    const COUNT_1H = 120;
-    const COUNT_4H = 60;
-    const COUNT_1D = 60;
+    const P0 = 5, P1 = 30, P2 = 45, P3 = 60, P_BOLL = 60;
+    const COUNT_15M = 150;
+    const COUNT_1H = 80;
+    const COUNT_4H = 48;
     const MAX_VM_PERIOD = 20;
 
-    const FETCH_LIMIT_15M = COUNT_15M + Math.max(P3, MAX_VM_PERIOD);
-    const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, MAX_VM_PERIOD, 35);
-    const FETCH_LIMIT_4H = COUNT_4H + Math.max(P3, MAX_VM_PERIOD);
-    const FETCH_LIMIT_1D = COUNT_1D + Math.max(P3, MAX_VM_PERIOD);
+    const FETCH_LIMIT_15M = COUNT_15M + Math.max(P3, P_BOLL, MAX_VM_PERIOD);
+    const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, P_BOLL, MAX_VM_PERIOD);
+    const FETCH_LIMIT_4H = COUNT_4H + Math.max(P3, P_BOLL, MAX_VM_PERIOD);
 
     let results15M = [];
     let results1H = [];
     let results4H = [];
-    let results1D = [];
-    let resultsMacd = [];
-    let resultsSmc = [];
     let resultsMulti = [];
     let resultsLowRisk = [];
     let activeTab = '15m';
     let tickerMap = new Map();
     let currentIndex = -1;
     const klinesCache = new Map();
-    let domWebSocket = null;
 
     const dom = {
         scanBtn: document.getElementById('scanBtn'),
@@ -413,26 +335,17 @@ canvas { display: block; width: 100%; height: 100%; }
         count15m: document.getElementById('count15m'),
         count1h: document.getElementById('count1h'),
         count4h: document.getElementById('count4h'),
-        count1d: document.getElementById('count1d'),
-        countMacd: document.getElementById('countMacd'),
-        countSmc: document.getElementById('countSmc'),
         countMulti: document.getElementById('countMulti'),
         countLowRisk: document.getElementById('countLowRisk'),
         tab15m: document.getElementById('tab15m'),
         tab1h: document.getElementById('tab1h'),
         tab4h: document.getElementById('tab4h'),
-        tab1d: document.getElementById('tab1d'),
-        tabMacd: document.getElementById('tabMacd'),
-        tabSmc: document.getElementById('tabSmc'),
         tabMulti: document.getElementById('tabMulti'),
         tabLowRisk: document.getElementById('tabLowRisk'),
         symbolList: document.getElementById('symbolList'),
         chartModal: document.getElementById('chartModal'),
         symbolTitle: document.getElementById('symbolTitle'),
         symbolRankTag: document.getElementById('symbolRankTag'),
-        domSignalBadge: document.getElementById('domSignalBadge'),
-        kdSignalBadge: document.getElementById('kdSignalBadge'),
-        smcSignalBadge: document.getElementById('smcSignalBadge'),
         closeModalBtn: document.getElementById('closeModalBtn'),
         prevBtn: document.getElementById('prevBtn'),
         nextBtn: document.getElementById('nextBtn'),
@@ -440,21 +353,17 @@ canvas { display: block; width: 100%; height: 100%; }
         wrapper15m: document.getElementById('wrapper15m'),
         wrapper1h: document.getElementById('wrapper1h'),
         wrapper4h: document.getElementById('wrapper4h'),
-        wrapper1d: document.getElementById('wrapper1d'),
         canvas15m: document.getElementById('klineCanvas15m'),
         canvas1h: document.getElementById('klineCanvas1h'),
         canvas4h: document.getElementById('klineCanvas4h'),
-        canvas1d: document.getElementById('klineCanvas1d'),
         tagText15m: document.getElementById('tagText15m'),
         tagText1h: document.getElementById('tagText1h'),
-        tagText4h: document.getElementById('tagText4h'),
-        tagText1d: document.getElementById('tagText1d')
+        tagText4h: document.getElementById('tagText4h')
     };
 
     const ctx15m = dom.canvas15m.getContext('2d');
     const ctx1h = dom.canvas1h.getContext('2d');
     const ctx4h = dom.canvas4h.getContext('2d');
-    const ctx1d = dom.canvas1d.getContext('2d');
 
     function calculateSMA(data, period) {
         const len = data.length;
@@ -470,89 +379,24 @@ canvas { display: block; width: 100%; height: 100%; }
         return ma;
     }
 
-    function calculateEMA(data, period) {
+    function calculateBollingerBands(data, period, multiplier = 2) {
         const len = data.length;
-        const ema = new Array(len).fill(null);
-        if (len === 0) return ema;
-        const multiplier = 2 / (period + 1);
-        let sum = 0;
-        for (let i = 0; i < Math.min(period, len); i++) sum += data[i];
-        let prevEMA = sum / Math.min(period, len);
-        ema[Math.min(period, len) - 1] = prevEMA;
-        for (let i = period; i < len; i++) {
-            prevEMA = (data[i] - prevEMA) * multiplier + prevEMA;
-            ema[i] = prevEMA;
-        }
-        return ema;
-    }
+        const sma = calculateSMA(data, period);
+        const upper = new Array(len).fill(null);
+        const lower = new Array(len).fill(null);
 
-    function calculateMACD(klines, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
-        const closes = klines.map(k => parseFloat(k[4]));
-        const len = closes.length;
-        const fastEMA = calculateEMA(closes, fastPeriod);
-        const slowEMA = calculateEMA(closes, slowPeriod);
-        const difArr = new Array(len).fill(null);
-        for (let i = 0; i < len; i++) {
-            if (fastEMA[i] !== null && slowEMA[i] !== null) {
-                difArr[i] = fastEMA[i] - slowEMA[i];
+        for (let i = period - 1; i < len; i++) {
+            const mean = sma[i];
+            if (mean === null) continue;
+            let varianceSum = 0;
+            for (let j = i - period + 1; j <= i; j++) {
+                varianceSum += Math.pow(data[j] - mean, 2);
             }
+            const stdDev = Math.sqrt(varianceSum / period);
+            upper[i] = mean + multiplier * stdDev;
+            lower[i] = mean - multiplier * stdDev;
         }
-        const validDif = difArr.filter(v => v !== null);
-        const deaValid = calculateEMA(validDif, signalPeriod);
-        const deaArr = new Array(len).fill(null);
-        let validIdx = 0;
-        for (let i = 0; i < len; i++) {
-            if (difArr[i] !== null) {
-                deaArr[i] = deaValid[validIdx++];
-            }
-        }
-        const macdArr = new Array(len).fill(null);
-        for (let i = 0; i < len; i++) {
-            if (difArr[i] !== null && deaArr[i] !== null) {
-                macdArr[i] = (difArr[i] - deaArr[i]) * 2;
-            }
-        }
-        return { dif: difArr, dea: deaArr, macd: macdArr };
-    }
-
-    // SMC 智慧錢幣概念核心運算 (檢查 BOS 結構突破與 Order Block 訂單塊)
-    function analyzeSMC(klines) {
-        const len = klines.length;
-        if (len < 10) return { status: 'NORMAL', label: '盤整中', type: 'NONE' };
-        
-        const highs = klines.map(k => parseFloat(k[2]));
-        const lows = klines.map(k => parseFloat(k[3]));
-        const closes = klines.map(k => parseFloat(k[4]));
-        const opens = klines.map(k => parseFloat(k[1]));
-
-        const currentClose = closes[len - 1];
-        const prevHigh = highs[len - 2];
-        const prevLow = lows[len - 2];
-
-        // 偵測 CHoCH (趨勢反轉 / 變盤點) 或 BOS (突破結構續強)
-        let isBOS = currentClose > prevHigh;
-        let isCHoCH = currentClose < prevLow;
-
-        // 偵測訂單塊 (Order Block - OB): 下跌前的最後一根陰線或上漲前的最後一根陽線
-        let hasBullishOB = false;
-        for (let i = len - 3; i >= Math.max(0, len - 8); i--) {
-            if (closes[i] < opens[i] && closes[i + 1] > highs[i]) {
-                hasBullishOB = true;
-                break;
-            }
-        }
-
-        if (isBOS && hasBullishOB) {
-            return { status: 'BOS_OB', label: 'BOS突破 + 看漲訂單塊(OB)', type: 'BULLISH' };
-        } else if (isBOS) {
-            return { status: 'BOS', label: '結構突破 (BOS)', type: 'BULLISH' };
-        } else if (hasBullishOB) {
-            return { status: 'OB', label: '回踩訂單塊 (Bullish OB)', type: 'BULLISH' };
-        } else if (isCHoCH) {
-            return { status: 'CHOCH', label: '結構反轉 (CHoCH)', type: 'BEARISH' };
-        }
-
-        return { status: 'NORMAL', label: '區間蓄勢', type: 'NEUTRAL' };
+        return { middle: sma, upper, lower };
     }
 
     function formatVolumeText(volume) {
@@ -574,70 +418,13 @@ canvas { display: block; width: 100%; height: 100%; }
         }
         return ma;
     }
-    function calculateEMA(data, period) {
-        const len = data.length;
-        const ema = new Array(len).fill(null);
-        if (len === 0) return ema;
-        const multiplier = 2 / (period + 1);
-        let sum = 0;
-        for (let i = 0; i < Math.min(period, len); i++) sum += data[i];
-        let prevEMA = sum / Math.min(period, len);
-        ema[Math.min(period, len) - 1] = prevEMA;
-        for (let i = period; i < len; i++) {
-            prevEMA = (data[i] - prevEMA) * multiplier + prevEMA;
-            ema[i] = prevEMA;
-        }
-        return ema;
-    }
-    function calculateMACD(klines) {
-        const closes = klines.map(k => parseFloat(k[4]));
-        const len = closes.length;
-        const fastEMA = calculateEMA(closes, 12);
-        const slowEMA = calculateEMA(closes, 26);
-        const difArr = new Array(len).fill(null);
-        for (let i = 0; i < len; i++) {
-            if (fastEMA[i] !== null && slowEMA[i] !== null) difArr[i] = fastEMA[i] - slowEMA[i];
-        }
-        const validDif = difArr.filter(v => v !== null);
-        const deaValid = calculateEMA(validDif, 9);
-        const deaArr = new Array(len).fill(null);
-        let validIdx = 0;
-        for (let i = 0; i < len; i++) {
-            if (difArr[i] !== null) deaArr[i] = deaValid[validIdx++];
-        }
-        return { dif: difArr, dea: deaArr };
-    }
-    function checkMACDBuy(klines) {
-        const { dif, dea } = calculateMACD(klines);
-        const len = klines.length;
-        if (len < 2) return false;
-        const dNow = dif[len - 1], eNow = dea[len - 1];
-        const dPrev = dif[len - 2], ePrev = dea[len - 2];
-        if (dNow !== null && eNow !== null && dPrev !== null && ePrev !== null) {
-            const isGoldenCross = (dPrev <= ePrev && dNow > ePrev);
-            const isAboveZero = (dNow > 0 && eNow > 0);
-            return isGoldenCross && isAboveZero;
-        }
-        return false;
-    }
-    function analyzeSMC(klines) {
-        const len = klines.length;
-        if (len < 10) return false;
-        const highs = klines.map(k => parseFloat(k[2]));
-        const lows = klines.map(k => parseFloat(k[3]));
-        const closes = klines.map(k => parseFloat(k[4]));
-        const opens = klines.map(k => parseFloat(k[1]));
-        const currentClose = closes[len - 1];
-        const prevHigh = highs[len - 2];
-        const isBOS = currentClose > prevHigh;
-        let hasBullishOB = false;
-        for (let i = len - 3; i >= Math.max(0, len - 8); i--) {
-            if (closes[i] < opens[i] && closes[i + 1] > highs[i]) {
-                hasBullishOB = true;
-                break;
-            }
-        }
-        return isBOS || hasBullishOB;
+    function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
+        if (idx < 0 || idx >= closes.length) return false;
+        const price = closes[idx];
+        return (ma5[idx] !== null && price >= ma5[idx]) &&
+               (ma30[idx] !== null && price >= ma30[idx]) &&
+               (ma45[idx] !== null && price >= ma45[idx]) &&
+               (ma60[idx] !== null && price >= ma60[idx]);
     }
     function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
         if (idx < 0 || idx >= closes.length) return false;
@@ -645,6 +432,32 @@ canvas { display: block; width: 100%; height: 100%; }
         const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
         return (m30 !== null && price >= m30) && (m45 !== null && price >= m45) && (m60 !== null && price >= m60);
     }
+    function checkIsFirstBarLightning(klinesRaw, is4h) {
+        const totalLen = klinesRaw.length;
+        if (totalLen < 60) return false;
+        const closes = klinesRaw.map(k => parseFloat(k[4]));
+        const ma1Arr = calculateSMA(closes, 30);
+        const ma2Arr = calculateSMA(closes, 45);
+        const ma3Arr = calculateSMA(closes, 60);
+        const ma5Arr = calculateSMA(closes, 5);
+
+        const nowIdx = totalLen - 1;
+        const prevIdx = totalLen - 2;
+
+        let isNowAbove = false;
+        let isPrevAbove = false;
+
+        if (is4h) {
+            isNowAbove = checkAboveMAs5_30_45_60(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, nowIdx);
+            isPrevAbove = checkAboveMAs5_30_45_60(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, prevIdx);
+        } else {
+            isNowAbove = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, nowIdx);
+            isPrevAbove = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, prevIdx);
+        }
+
+        return isNowAbove && !isPrevAbove;
+    }
+
     function isBullishAlignment(klinesRaw) {
         const totalLen = klinesRaw.length;
         if (totalLen < 60) return null;
@@ -686,45 +499,36 @@ canvas { display: block; width: 100%; height: 100%; }
 
     async function fetchSymbol(symbol, apiBase, limits) {
         try {
-            const [klines15m, klines1h, klines4h, klines1d] = await Promise.all([
+            const [klines15m, klines1h, klines4h] = await Promise.all([
                 fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=15m&limit=\${limits.l15m}\`),
                 fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`),
-                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=4h&limit=\${limits.l4h}\`),
-                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1d&limit=\${limits.l1d}\`)
+                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=4h&limit=\${limits.l4h}\`)
             ]);
 
             const bull15m = isBullishAlignment(klines15m);
             const bull1h = isBullishAlignment(klines1h);
             const bull4hReal = isBullishAlignment(klines4h);
-            const bull1dReal = isBullishAlignment(klines1d);
 
-            // 全週期 MACD 0軸上金叉
-            const macd15m = checkMACDBuy(klines15m);
-            const macd1h = checkMACDBuy(klines1h);
-            const macd4h = checkMACDBuy(klines4h);
-            const macd1d = checkMACDBuy(klines1d);
-            const macdAny = macd15m || macd1h || macd4h || macd1d;
-
-            // 全週期 SMC 結構訊號
-            const smc15m = analyzeSMC(klines15m);
-            const smc1h = analyzeSMC(klines1h);
-            const smc4h = analyzeSMC(klines4h);
-            const smc1d = analyzeSMC(klines1d);
-            const smcAny = smc15m || smc1h || smc4h || smc1d;
-
-            if (!bull15m && !bull1h && !bull4hReal && !bull1dReal && !macdAny && !smcAny) return null;
+            if (!bull15m && !bull1h && !bull4hReal) return null;
             let matchCount = 0;
             if (bull15m) matchCount++;
             if (bull1h) matchCount++;
             if (bull4hReal) matchCount++;
-            if (bull1dReal) matchCount++;
-            if (macdAny) matchCount++;
-            if (smcAny) matchCount++;
+
+            const lightning1h = checkIsFirstBarLightning(klines1h, false);
+            const lightning4h = checkIsFirstBarLightning(klines4h, true);
+
+            const isLightningMatch = lightning1h || lightning4h;
+
+            let lightningType = '';
+            if (lightning4h) lightningType = '4H';
+            else if (lightning1h) lightningType = '1H';
 
             return {
-                symbol, bull15m, bull1h, bull4h: bull4hReal, bull1d: bull1dReal, macdAny, smcAny, matchCount,
-                currentPrice: (bull15m || bull1h || bull4hReal || bull1dReal || { price: parseFloat(klines1h[klines1h.length - 1][4]) }).price,
-                rawKlines: { k15m: klines15m, k1h: klines1h, k4h: klines4h, k1d: klines1d }
+                symbol, bull15m, bull1h, bull4h: bull4hReal, matchCount,
+                isLightningMatch, lightningType,
+                currentPrice: (bull15m || bull1h || bull4hReal).price,
+                rawKlines: { k15m: klines15m, k1h: klines1h, k4h: klines4h }
             };
         } catch {
             return null;
@@ -751,7 +555,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
     async function startScan() {
         dom.scanBtn.disabled = true;
-        dom.scanBtn.innerText = "⚡ 背景掃描中...";
+        dom.scanBtn.innerText = "⚡ 背景極速掃描中...";
         dom.symbolList.replaceChildren();
         dom.progress.style.width = '0%';
         klinesCache.clear();
@@ -784,7 +588,7 @@ canvas { display: block; width: 100%; height: 100%; }
         worker.postMessage({
             symbols: candidateSymbols,
             apiBase: API_BASE,
-            limits: { l15m: FETCH_LIMIT_15M, l1h: FETCH_LIMIT_1H, l4h: FETCH_LIMIT_4H, l1d: FETCH_LIMIT_1D }
+            limits: { l15m: FETCH_LIMIT_15M, l1h: FETCH_LIMIT_1H, l4h: FETCH_LIMIT_4H }
         });
 
         worker.onmessage = (e) => {
@@ -802,10 +606,9 @@ canvas { display: block; width: 100%; height: 100%; }
                         bull15m: m.bull15m,
                         bull1h: m.bull1h,
                         bull4h: m.bull4h,
-                        bull1d: m.bull1d,
-                        macdAny: m.macdAny,
-                        smcAny: m.smcAny,
                         matchCount: m.matchCount,
+                        isLightningMatch: m.isLightningMatch,
+                        lightningType: m.lightningType,
                         priceChange24h: ticker ? parseFloat(ticker.priceChangePercent) : 0,
                         quoteVolume24h: ticker ? parseFloat(ticker.quoteVolume) : 0
                     };
@@ -814,48 +617,19 @@ canvas { display: block; width: 100%; height: 100%; }
                 results15M = allMatches.filter(m => m.bull15m);
                 results1H = allMatches.filter(m => m.bull1h);
                 results4H = allMatches.filter(m => m.bull4h);
-                results1D = allMatches.filter(m => m.bull1d);
-                resultsMacd = allMatches.filter(m => m.macdAny);
-                resultsSmc = allMatches.filter(m => m.smcAny);
                 resultsMulti = allMatches.filter(m => m.matchCount >= 2);
-
-                const lowRiskCandidates = allMatches.filter(m => {
-                    const hasHigherBull = (m.bull4h !== null || m.bull1d !== null);
-                    const hasLowerNear = (
-                        (m.bull15m !== null && m.bull15m.ma3DistPercent <= 3.0) || 
-                        (m.bull1h !== null && m.bull1h.ma3DistPercent <= 3.0)
-                    );
-                    return hasHigherBull && hasLowerNear;
-                });
-
-                lowRiskCandidates.sort((a, b) => {
-                    const distA = Math.min(
-                        a.bull15m ? a.bull15m.ma3DistPercent : 99,
-                        a.bull1h ? a.bull1h.ma3DistPercent : 99
-                    );
-                    const distB = Math.min(
-                        b.bull15m ? b.bull15m.ma3DistPercent : 99,
-                        b.bull1h ? b.bull1h.ma3DistPercent : 99
-                    );
-                    return distA - distB;
-                });
-                resultsLowRisk = lowRiskCandidates.slice(0, 5);
+                resultsLowRisk = allMatches.filter(m => m.isLightningMatch);
 
                 const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
                 results15M.sort(sortByChange);
                 results1H.sort(sortByChange);
                 results4H.sort(sortByChange);
-                results1D.sort(sortByChange);
-                resultsMacd.sort(sortByChange);
-                resultsSmc.sort(sortByChange);
                 resultsMulti.sort(sortByChange);
+                resultsLowRisk.sort(sortByChange);
 
                 dom.count15m.innerText = results15M.length;
                 dom.count1h.innerText = results1H.length;
                 dom.count4h.innerText = results4H.length;
-                dom.count1d.innerText = results1D.length;
-                dom.countMacd.innerText = resultsMacd.length;
-                dom.countSmc.innerText = resultsSmc.length;
                 dom.countMulti.innerText = resultsMulti.length;
                 dom.countLowRisk.innerText = resultsLowRisk.length;
 
@@ -871,9 +645,6 @@ canvas { display: block; width: 100%; height: 100%; }
             case '15m': return results15M;
             case '1h': return results1H;
             case '4h': return results4H;
-            case '1d': return results1D;
-            case 'macd': return resultsMacd;
-            case 'smc': return resultsSmc;
             case 'multi': return resultsMulti;
             case 'lowRisk': return resultsLowRisk;
             default: return [];
@@ -898,26 +669,31 @@ canvas { display: block; width: 100%; height: 100%; }
             const chg24Class = item.priceChange24h >= 0 ? 'val-up' : 'val-down';
             const chg24Sign = item.priceChange24h >= 0 ? '+' : '';
 
+            let matchBadges = [];
+            if (item.bull15m) matchBadges.push("15M");
+            if (item.bull1h) matchBadges.push("1H");
+            if (item.bull4h) matchBadges.push("4H");
+
             let badgeHtml = '';
             if (activeTab === 'lowRisk') {
-                badgeHtml = `<span class="badge-lowrisk">⭐ 低風險精選 #${index + 1}</span>`;
-            } else if (activeTab === 'macd') {
-                badgeHtml = `<span class="badge-macd">⚡ ALL MACD 0軸上金叉</span>`;
-            } else if (activeTab === 'smc') {
-                badgeHtml = `<span class="badge-smc">🏛️ ALL SMC 結構/OB</span>`;
+                badgeHtml = `<span class="badge-lowrisk">⚡ ${item.lightningType} 閃電第一根</span>`;
             } else if (item.matchCount >= 2) {
-                badgeHtml = `<span class="badge-multi">🔥 ${item.matchCount}條件共振</span>`;
+                badgeHtml = `<span class="badge-multi">🔥 ${item.matchCount}週期共振 (${matchBadges.join('+')})</span>`;
             } else {
-                badgeHtml = `<span class="badge-bull">⚡ 多頭排列</span>`;
+                badgeHtml = `<span class="badge-bull">⚡ ${matchBadges.join('/')} 多頭</span>`;
             }
 
             let distText = '';
-            if (activeTab === 'macd') {
-                distText = `策略訊號: <span class="val-up">全週期任一級別 MACD 0軸上金叉買進</span>`;
-            } else if (activeTab === 'smc') {
-                distText = `策略訊號: <span style="color:var(--manga-purple)">全週期 SMC 訂單塊(OB)與結構突破(BOS)</span>`;
+            if (activeTab === 'lowRisk') {
+                distText = `觸發週期: <span class="val-up">${item.lightningType} 週期出現閃電突破訊號</span>`;
+            } else if (activeTab === '15m' && item.bull15m) {
+                distText = `距 15M 60MA: <span class="val-up">+${item.bull15m.ma3DistPercent.toFixed(2)}%</span>`;
+            } else if (activeTab === '1h' && item.bull1h) {
+                distText = `距 1H 60MA: <span class="val-up">+${item.bull1h.ma3DistPercent.toFixed(2)}%</span>`;
+            } else if (activeTab === '4h' && item.bull4h) {
+                distText = `距 4H 60MA: <span class="val-up">+${item.bull4h.ma3DistPercent.toFixed(2)}%</span>`;
             } else {
-                distText = `24H 漲跌幅: <span class="${chg24Class}">${chg24Sign}${item.priceChange24h.toFixed(2)}%</span>`;
+                distText = `滿足週期: <span class="val-up">${matchBadges.join(', ')}</span>`;
             }
 
             card.innerHTML = `
@@ -931,12 +707,12 @@ canvas { display: block; width: 100%; height: 100%; }
                         ${distText}
                     </div>
                     <div class="detail-row">
-                        24H 成交額: <span style="color:#00f0ff;">$${formatVolumeText(item.quoteVolume24h)}</span>
+                        24H 漲跌幅: <span class="${chg24Class}">${chg24Sign}${item.priceChange24h.toFixed(2)}%</span> | 24H 成交額: <span style="color:#00f0ff;">$${formatVolumeText(item.quoteVolume24h)}</span>
                     </div>
                 </div>
                 <div style="text-align:right;">
                     <div class="symbol-price">${item.price}</div>
-                    <div style="font-size:0.7rem; color:var(--manga-cyan); margin-top:4px;">點擊看 4 圖表 📈</div>
+                    <div style="font-size:0.7rem; color:var(--manga-cyan); margin-top:4px;">點擊看 3 圖表 📈</div>
                 </div>
             `;
             fragment.appendChild(card);
@@ -951,6 +727,7 @@ canvas { display: block; width: 100%; height: 100%; }
         const ma30All = calculateSMA(closesAll, P1);
         const ma45All = calculateSMA(closesAll, P2);
         const ma60All = calculateSMA(closesAll, P3);
+        const boll60 = calculateBollingerBands(closesAll, P_BOLL, 2);
         const vm5All = calculateSMA(volumesAll, 5);
         const vm20All = calculateSMA(volumesAll, 20);
 
@@ -962,6 +739,8 @@ canvas { display: block; width: 100%; height: 100%; }
         const showMA30 = ma30All.slice(-actualShowCount);
         const showMA45 = ma45All.slice(-actualShowCount);
         const showMA60 = ma60All.slice(-actualShowCount);
+        const showBollUpper = boll60.upper.slice(-actualShowCount);
+        const showBollLower = boll60.lower.slice(-actualShowCount);
         const showVM5 = vm5All.slice(-actualShowCount);
         const showVM20 = vm20All.slice(-actualShowCount);
 
@@ -984,10 +763,14 @@ canvas { display: block; width: 100%; height: 100%; }
         const chartW = width - padding.left - padding.right;
 
         let minP = Infinity, maxP = -Infinity;
-        showK.forEach(k => {
+        showK.forEach((k, i) => {
             const l = parseFloat(k[3]), h = parseFloat(k[2]);
             if (l < minP) minP = l;
             if (h > maxP) maxP = h;
+            const bUp = showBollUpper[i];
+            const bLow = showBollLower[i];
+            if (bUp !== null && bUp > maxP) maxP = bUp;
+            if (bLow !== null && bLow < minP) minP = bLow;
         });
 
         let maxVol = -Infinity;
@@ -1028,12 +811,18 @@ canvas { display: block; width: 100%; height: 100%; }
         const formatVol = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : (v / 1e3).toFixed(0) + 'K';
         ctx.fillText(formatVol(maxVol), width - padding.right + 3, volTop + 6);
 
+        const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
+            
             const utcDay = date.getUTCDay();
             const utcHour = date.getUTCHours();
+            const utcMin = date.getUTCMinutes();
+
             const isMondayStart = (utcDay === 1 && utcHour === 0);
+            const isDailyStart = (utcHour === 0 && utcMin === 0);
 
             if (isMondayStart) {
                 ctx.strokeStyle = 'rgba(157, 78, 221, 0.75)';
@@ -1044,11 +833,71 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.moveTo(x, padding.top);
                 ctx.lineTo(x, padding.top + totalH);
                 ctx.stroke();
+
+                ctx.save();
+                ctx.font = 'bold 8px JetBrains Mono';
+                ctx.fillStyle = '#9d4edd';
+                ctx.textAlign = 'center';
+                ctx.fillText('週一', x, padding.top - 5);
+                ctx.restore();
+            } else if (isDailyStart) {
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+                ctx.lineWidth = 1.2;
+                ctx.setLineDash([3, 3]);
+                const x = padding.left + i * barWidth + barWidth / 2;
+                ctx.beginPath();
+                ctx.moveTo(x, padding.top);
+                ctx.lineTo(x, padding.top + totalH);
+                ctx.stroke();
+
+                ctx.save();
+                ctx.font = '7px JetBrains Mono';
+                ctx.fillStyle = '#00f0ff';
+                ctx.textAlign = 'center';
+                ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 5);
+                ctx.restore();
             }
         });
 
         ctx.setLineDash([]);
         ctx.lineWidth = 1;
+
+        const drawLine = (dataArray, color, getYFunc, width = 1, isDashed = false, glowColor = null, glowBlur = 0) => {
+            ctx.save();
+            if (glowBlur > 0) {
+                ctx.shadowColor = glowColor || color;
+                ctx.shadowBlur = glowBlur;
+            }
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            if (isDashed) ctx.setLineDash([3, 2]);
+            else ctx.setLineDash([]);
+            ctx.beginPath();
+            let started = false;
+            dataArray.forEach((val, i) => {
+                if (val === null) return;
+                const x = padding.left + i * barWidth + barWidth / 2;
+                const y = getYFunc(val);
+                if (!started) {
+                    ctx.moveTo(x, y);
+                    started = true;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            ctx.restore();
+        };
+
+        drawLine(showBollUpper, '#ff007f', getYPrice, 1.6, false, '#ff007f', 6);
+        drawLine(showBollLower, '#ff007f', getYPrice, 1.6, false, '#ff007f', 6);
+
+        drawLine(showMA5, '#00ff66', getYPrice);
+        drawLine(showMA30, '#ffea00', getYPrice);
+        drawLine(showMA45, '#ff9100', getYPrice);
+        drawLine(showMA60, '#ff007f', getYPrice);
+        drawLine(showVM5, '#00f0ff', getYVol, 0.9);
+        drawLine(showVM20, '#9d4edd', getYVol, 0.9);
 
         showK.forEach((k, i) => {
             const absoluteIdx = showStartIndex + i;
@@ -1074,33 +923,68 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.4)' : 'rgba(255, 42, 109, 0.4)';
             const vY = getYVol(vol);
             ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
+
+            const vm5Val = vm5All[absoluteIdx];
+            const vm20Val = vm20All[absoluteIdx];
+            const vm5Prev = vm5All[absoluteIdx - 1];
+            const vm20Prev = vm20All[absoluteIdx - 1];
+
+            const isVolWarmingNow = (vm5Val !== null && vm20Val !== null && vm5Val > vm20Val);
+            const isVolWarmingPrev = (vm5Prev !== null && vm20Prev !== null && vm5Prev > vm20Prev);
+            const isFirstBarVolWarming = isVolWarmingNow && !isVolWarmingPrev;
+
+            if (isFirstBarVolWarming) {
+                ctx.save();
+                ctx.font = 'bold 9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = '#00f0ff';
+                ctx.shadowColor = '#00f0ff';
+                ctx.shadowBlur = 6;
+                ctx.fillText('🔥', x, volTop - 11);
+                ctx.restore();
+            }
+
+            const checkAboveMAs5_30_45_60 = (closes, ma5, ma30, ma45, ma60, idx) => {
+                if (idx < 0 || idx >= closes.length) return false;
+                const price = closes[idx];
+                return (ma5[idx] !== null && price >= ma5[idx]) &&
+                       (ma30[idx] !== null && price >= ma30[idx]) &&
+                       (ma45[idx] !== null && price >= ma45[idx]) &&
+                       (ma60[idx] !== null && price >= ma60[idx]);
+            };
+
+            const checkAboveMAs30_45_60 = (closes, ma30, ma45, ma60, idx) => {
+                if (idx < 0 || idx >= closes.length) return false;
+                const price = closes[idx];
+                return (ma30[idx] !== null && price >= ma30[idx]) &&
+                       (ma45[idx] !== null && price >= ma45[idx]) &&
+                       (ma60[idx] !== null && price >= ma60[idx]);
+            };
+
+            let isNowAbove = false;
+            let isPrevAbove = false;
+            if (periodType === '4h') {
+                isNowAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
+                isPrevAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
+            } else {
+                isNowAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx);
+                isPrevAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx - 1);
+            }
+
+            if (isNowAbove && !isPrevAbove) {
+                ctx.save();
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillStyle = '#ffea00';
+                ctx.shadowColor = '#ffea00';
+                ctx.shadowBlur = 5;
+                const highY = getYPrice(high);
+                ctx.fillText('⚡', x, highY - 2);
+                ctx.restore();
+            }
         });
-
-        const drawLine = (dataArray, color, getYFunc, width = 1) => {
-            ctx.strokeStyle = color;
-            ctx.lineWidth = width;
-            ctx.beginPath();
-            let started = false;
-            dataArray.forEach((val, i) => {
-                if (val === null) return;
-                const x = padding.left + i * barWidth + barWidth / 2;
-                const y = getYFunc(val);
-                if (!started) {
-                    ctx.moveTo(x, y);
-                    started = true;
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            });
-            ctx.stroke();
-        };
-
-        drawLine(showMA5, '#00ff66', getYPrice);
-        drawLine(showMA30, '#ffea00', getYPrice);
-        drawLine(showMA45, '#ff9100', getYPrice);
-        drawLine(showMA60, '#ff007f', getYPrice);
-        drawLine(showVM5, '#00f0ff', getYVol, 0.9);
-        drawLine(showVM20, '#9d4edd', getYVol, 0.9);
     }
 
     function loadAndDrawCharts(symbol) {
@@ -1110,85 +994,13 @@ canvas { display: block; width: 100%; height: 100%; }
             renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cached.k15m, COUNT_15M, '15m');
             renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H, '1h');
             renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cached.k4h, COUNT_4H, '4h');
-            renderCanvasChart(dom.canvas1d, dom.wrapper1d, ctx1d, cached.k1d, COUNT_1D, '1d');
-
-            updateAllCycleSignals(cached);
         }
-    }
-
-    function updateAllCycleSignals(cached) {
-        // MACD 訊號檢查
-        const m15 = calculateMACD(cached.k15m);
-        const m1h = calculateMACD(cached.k1h);
-        const m4h = calculateMACD(cached.k4h);
-        const m1d = calculateMACD(cached.k1d);
-
-        const getLatestMACDState = (m, name) => {
-            const len = m.dif.length;
-            if (len < 2) return `${name}: 正常`;
-            const dNow = m.dif[len - 1], eNow = m.dea[len - 1];
-            const dPrev = m.dif[len - 2], ePrev = m.dea[len - 2];
-            if (dNow === null || eNow === null) return `${name}: 計算中`;
-            if (dPrev <= ePrev && dNow > ePrev && dNow > 0) return `${name}🟢0軸上金叉`;
-            if (dPrev >= ePrev && dNow < ePrev && dNow > 0) return `${name}🔴0軸上死叉`;
-            if (dNow > 0) return `${name}⚡0軸上續強`;
-            return `${name}🟡下方`;
-        };
-
-        const macdText = [
-            getLatestMACDState(m15, '15M'),
-            getLatestMACDState(m1h, '1H'),
-            getLatestMACDState(m4h, '4H'),
-            getLatestMACDState(m1d, '1D')
-        ].join(' | ');
-
-        dom.kdSignalBadge.innerText = `MACD: ${macdText}`;
-
-        // SMC 訊號檢查
-        const s15 = analyzeSMC(cached.k15m);
-        const s1h = analyzeSMC(cached.k1h);
-        const s4h = analyzeSMC(cached.k4h);
-        const s1d = analyzeSMC(cached.k1d);
-
-        const smcText = `15M:${s15.label} | 1H:${s1h.label} | 4H:${s4h.label} | 1D:${s1d.label}`;
-        dom.smcSignalBadge.innerText = `SMC: ${smcText}`;
     }
 
     function updatePanelTags() {
         dom.tagText15m.innerText = `15M (${COUNT_15M})`;
-        dom.tagText1h.innerText = `1H (MACD/SMC同步)`;
+        dom.tagText1h.innerText = `1H (${COUNT_1H})`;
         dom.tagText4h.innerText = `4H (${COUNT_4H})`;
-        dom.tagText1d.innerText = `1D (${COUNT_1D})`;
-    }
-
-    function startDOMStream(symbol) {
-        if (domWebSocket) {
-            domWebSocket.close();
-            domWebSocket = null;
-        }
-
-        dom.domSignalBadge.innerText = 'DOM: 連線中...';
-        const wsSymbol = symbol.toLowerCase();
-        domWebSocket = new WebSocket(`wss://fstream.binance.com/ws/${wsSymbol}@depth5@100ms`);
-
-        domWebSocket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (!data.b || !data.a) return;
-                let totalBid = 0, totalAsk = 0;
-                data.b.forEach(b => totalBid += parseFloat(b[1]));
-                data.a.forEach(a => totalAsk += parseFloat(a[1]));
-                const ratio = totalAsk > 0 ? (totalBid / totalAsk) : 1;
-
-                if (ratio >= 1.5) {
-                    dom.domSignalBadge.innerHTML = `🟢 DOM買盤強 (${ratio.toFixed(2)})`;
-                } else if (ratio <= 0.67) {
-                    dom.domSignalBadge.innerHTML = `🔴 DOM賣壓重 (${ratio.toFixed(2)})`;
-                } else {
-                    dom.domSignalBadge.innerHTML = `🟡 DOM平衡 (${ratio.toFixed(2)})`;
-                }
-            } catch {}
-        };
     }
 
     function openChartModal(index) {
@@ -1204,14 +1016,9 @@ canvas { display: block; width: 100%; height: 100%; }
         document.body.classList.add('modal-open');
 
         loadAndDrawCharts(item.symbol);
-        startDOMStream(item.symbol);
     }
 
     function closeChartModal() {
-        if (domWebSocket) {
-            domWebSocket.close();
-            domWebSocket = null;
-        }
         dom.chartModal.classList.remove('active');
         dom.chartModal.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('modal-open');
@@ -1227,7 +1034,9 @@ canvas { display: block; width: 100%; height: 100%; }
         openChartModal(newIndex);
     }
 
-    let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
+    let touchStartX = 0, touchStartY = 0;
+    let touchEndX = 0, touchEndY = 0;
+
     dom.chartModal.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
@@ -1236,17 +1045,21 @@ canvas { display: block; width: 100%; height: 100%; }
     dom.chartModal.addEventListener('touchend', (e) => {
         touchEndX = e.changedTouches[0].screenX;
         touchEndY = e.changedTouches[0].screenY;
+        handleSwipe();
+    }, { passive: true });
+
+    function handleSwipe() {
         const deltaX = touchEndX - touchStartX;
         const deltaY = touchEndY - touchStartY;
         if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
             if (deltaX < 0) navigateSymbol(1);
             else navigateSymbol(-1);
         }
-    }, { passive: true });
+    }
 
     function switchTab(tabKey, targetBtn) {
         activeTab = tabKey;
-        [dom.tab15m, dom.tab1h, dom.tab4h, dom.tab1d, dom.tabMacd, dom.tabSmc, dom.tabMulti, dom.tabLowRisk].forEach(b => b.classList.remove('active'));
+        [dom.tab15m, dom.tab1h, dom.tab4h, dom.tabMulti, dom.tabLowRisk].forEach(b => b.classList.remove('active'));
         targetBtn.classList.add('active');
         renderList();
     }
@@ -1254,9 +1067,6 @@ canvas { display: block; width: 100%; height: 100%; }
     dom.tab15m.addEventListener('click', () => switchTab('15m', dom.tab15m));
     dom.tab1h.addEventListener('click', () => switchTab('1h', dom.tab1h));
     dom.tab4h.addEventListener('click', () => switchTab('4h', dom.tab4h));
-    dom.tab1d.addEventListener('click', () => switchTab('1d', dom.tab1d));
-    dom.tabMacd.addEventListener('click', () => switchTab('macd', dom.tabMacd));
-    dom.tabSmc.addEventListener('click', () => switchTab('smc', dom.tabSmc));
     dom.tabMulti.addEventListener('click', () => switchTab('multi', dom.tabMulti));
     dom.tabLowRisk.addEventListener('click', () => switchTab('lowRisk', dom.tabLowRisk));
 
@@ -1274,6 +1084,19 @@ canvas { display: block; width: 100%; height: 100%; }
         if (e.key === 'Escape') closeChartModal();
         else if (e.key === 'ArrowLeft') navigateSymbol(-1);
         else if (e.key === 'ArrowRight') navigateSymbol(1);
+    });
+
+    let resizeRaf = null;
+    window.addEventListener('resize', () => {
+        if (resizeRaf) cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => {
+            if (dom.chartModal.classList.contains('active') && currentIndex !== -1) {
+                const currentList = getCurrentList();
+                if (currentList[currentIndex]) {
+                    loadAndDrawCharts(currentList[currentIndex].symbol);
+                }
+            }
+        });
     });
 })();
 </script>
