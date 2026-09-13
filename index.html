@@ -711,47 +711,48 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.fillText(formatVol(maxVol), width - padding.right + 4, volTop + 6);
         ctx.fillText('Vol', width - padding.right + 4, volTop + volH - 2);
 
-        // 明顯的週一到週日週期區隔與垂直高亮虛線
-        showK.forEach((k, i) => {
-            const timestamp = parseInt(k[0]);
-            const date = new Date(timestamp);
-            const utcDay = date.getUTCDay(); // 0:週日, 1:週一 ... 6:週六
-            const utcHour = date.getUTCHours();
-            const utcMin = date.getUTCMinutes();
+        // 週期垂直虛線分界繪製（僅針對 15M 與 1H 顯示，4H 與 1D 不顯示）
+        if (periodType === '15m' || periodType === '1h') {
+            showK.forEach((k, i) => {
+                const timestamp = parseInt(k[0]);
+                const date = new Date(timestamp);
+                const utcDay = date.getUTCDay(); // 0:週日, 1:週一 ... 6:週六
+                const utcHour = date.getUTCHours();
+                const utcMin = date.getUTCMinutes();
 
-            // 週一 00:00 作為每週起始分界線 (高亮紫色粗虛線)
-            const isMondayStart = (utcDay === 1 && utcHour === 0);
-            // 每日 00:00 分界線 (藍色細虛線)
-            const isDailyStart = (utcHour === 0 && utcMin === 0);
+                // 週一 00:00 作為每週起始分界線 (高亮紫色粗虛線)
+                const isMondayStart = (utcDay === 1 && utcHour === 0);
+                // 每日 00:00 分界線 (藍色細虛線，僅 15M 顯示)
+                const isDailyStart = (utcHour === 0 && utcMin === 0);
 
-            const x = padding.left + i * barWidth + barWidth / 2;
+                const x = padding.left + i * barWidth + barWidth / 2;
 
-            if (isMondayStart) {
-                // 強化週一的分界線：加粗、提高不透明度
-                ctx.strokeStyle = '#9d4edd';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([4, 3]);
-                ctx.beginPath();
-                ctx.moveTo(x, padding.top);
-                ctx.lineTo(x, padding.top + totalH);
-                ctx.stroke();
+                if (isMondayStart) {
+                    ctx.strokeStyle = '#9d4edd';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding.top);
+                    ctx.lineTo(x, padding.top + totalH);
+                    ctx.stroke();
 
-                ctx.save();
-                ctx.font = 'bold 9px JetBrains Mono';
-                ctx.fillStyle = '#b779ff';
-                ctx.textAlign = 'center';
-                ctx.fillText('週一', x, padding.top - 6);
-                ctx.restore();
-            } else if (isDailyStart && periodType !== '1d' && periodType !== '4h') {
-                ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([2, 2]);
-                ctx.beginPath();
-                ctx.moveTo(x, padding.top);
-                ctx.lineTo(x, padding.top + totalH);
-                ctx.stroke();
-            }
-        });
+                    ctx.save();
+                    ctx.font = 'bold 9px JetBrains Mono';
+                    ctx.fillStyle = '#b779ff';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('週一', x, padding.top - 6);
+                    ctx.restore();
+                } else if (isDailyStart && periodType === '15m') {
+                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding.top);
+                    ctx.lineTo(x, padding.top + totalH);
+                    ctx.stroke();
+                }
+            });
+        }
 
         ctx.setLineDash([]);
         ctx.lineWidth = 1;
