@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>⚡ 極速雙週期多頭排列儀表板 (>1億USDT)</title>
+<title>⚡ 極速雙週期多頭排列儀表板 (>100萬USDT)</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap');
 :root {
@@ -230,7 +230,7 @@ canvas { display: block; width: 100%; height: 100%; }
 <body>
 <div class="app-header">
     <div class="header-top">
-        <div class="header-title">⚡ 雙週期多頭排列儀表板 (>1億USDT)</div>
+        <div class="header-title">⚡ 雙週期多頭排列儀表板 (>100萬USDT)</div>
         <button id="scanBtn" class="scan-btn">啟動極速掃描</button>
     </div>
 </div>
@@ -242,7 +242,7 @@ canvas { display: block; width: 100%; height: 100%; }
 <div class="dashboard">
     <div class="stat-card">
         <div class="val" id="statTotal" style="color:var(--manga-cyan)">0</div>
-        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數 (>1億USDT)</div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數 (>100萬USDT)</div>
     </div>
     <div class="stat-card entry">
         <div class="val" id="statEntry">0</div>
@@ -366,7 +366,12 @@ canvas { display: block; width: 100%; height: 100%; }
 
     function formatVolumeText(volume) {
         const yi = volume / 100000000;
-        return yi.toFixed(2) + '億';
+        if (yi >= 1) {
+            return yi.toFixed(2) + '億';
+        } else {
+            const wan = volume / 10000;
+            return wan.toFixed(0) + '萬';
+        }
     }
 
     const workerCode = `
@@ -383,27 +388,17 @@ canvas { display: block; width: 100%; height: 100%; }
         }
         return ma;
     }
-    function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
-        if (idx < 0 || idx >= closes.length) return false;
-        const price = closes[idx];
-        const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
-        return (m30 !== null && price >= m30) && (m45 !== null && price >= m45) && (m60 !== null && price >= m60);
-    }
     function isBullishAlignment(klinesRaw) {
         const totalLen = klinesRaw.length;
         if (totalLen < 60) return null;
         const closes = klinesRaw.map(k => parseFloat(k[4]));
         const price = closes[totalLen - 1];
-        const ma1Arr = calculateSMA(closes, 30);
-        const ma2Arr = calculateSMA(closes, 45);
         const ma3Arr = calculateSMA(closes, 60);
-        const ma1 = ma1Arr[totalLen - 1];
-        const ma2 = ma2Arr[totalLen - 1];
         const ma3 = ma3Arr[totalLen - 1];
-        if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
+        if (ma3 !== null && price >= ma3) {
             const ma3DistPercent = ((price - ma3) / ma3) * 100;
-            const isAboveAllNow = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
-            const isAboveAllPrev = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
+            const isAboveAllNow = (ma3 !== null && price >= ma3);
+            const isAboveAllPrev = (ma3Arr[totalLen - 2] !== null && closes[totalLen - 2] >= ma3Arr[totalLen - 2]);
             const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
             return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
         }
@@ -435,14 +430,15 @@ canvas { display: block; width: 100%; height: 100%; }
                 fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`)
             ]);
 
-            const bull15m = isBullishAlignment(klines15m);
+            // 強制要求：一小時 K 線必須大於 60MA (bull1h 必須存在)
             const bull1h = isBullishAlignment(klines1h);
+            if (!bull1h) return null;
 
-            if (!bull15m && !bull1h) return null;
+            const bull15m = isBullishAlignment(klines15m);
 
             return {
                 symbol, bull15m, bull1h,
-                currentPrice: (bull15m || bull1h).price,
+                currentPrice: bull1h.price,
                 rawKlines: { k15m: klines15m, k1h: klines1h }
             };
         } catch {
@@ -489,7 +485,7 @@ canvas { display: block; width: 100%; height: 100%; }
             return;
         }
 
-        const MIN_VOLUME = 100000000;
+        const MIN_VOLUME = 1000000;
         const candidateSymbols = Array.from(tickerMap.keys()).filter(sym => {
             if (!sym.endsWith('USDT')) return false;
             return parseFloat(tickerMap.get(sym).quoteVolume) > MIN_VOLUME;
@@ -525,8 +521,9 @@ canvas { display: block; width: 100%; height: 100%; }
                     };
                 });
 
+                // 因為所有通過篩選的標的都已具備 1H 條件，此處直接對 1H 與 15M 分類
                 results15M = allMatches.filter(m => m.bull15m);
-                results1H = allMatches.filter(m => m.bull1h);
+                results1H = allMatches; // 所有通過者皆符合 1H 大於 60MA
 
                 const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
                 results15M.sort(sortByChange);
@@ -568,7 +565,7 @@ canvas { display: block; width: 100%; height: 100%; }
             const chg24Class = item.priceChange24h >= 0 ? 'val-up' : 'val-down';
             const chg24Sign = item.priceChange24h >= 0 ? '+' : '';
 
-            let badgeHtml = `<span class="badge-bull">⚡ 多頭排列</span>`;
+            let badgeHtml = `<span class="badge-bull">⚡ 1H>60MA</span>`;
 
             let distText = '';
             if (activeTab === '15m' && item.bull15m) {
@@ -826,16 +823,8 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.restore();
             }
 
-            const checkAboveMAs30_45_60 = (closes, ma30, ma45, ma60, idx) => {
-                if (idx < 0 || idx >= closes.length) return false;
-                const price = closes[idx];
-                return (ma30[idx] !== null && price >= ma30[idx]) &&
-                       (ma45[idx] !== null && price >= ma45[idx]) &&
-                       (ma60[idx] !== null && price >= ma60[idx]);
-            };
-
-            const isNowAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx);
-            const isPrevAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx - 1);
+            const isNowAbove = (ma60All[absoluteIdx] !== null && close >= ma60All[absoluteIdx]);
+            const isPrevAbove = (ma60All[absoluteIdx - 1] !== null && parseFloat(showK[i-1]?.[4] || k[4]) >= ma60All[absoluteIdx - 1]);
 
             if (isNowAbove && !isPrevAbove) {
                 ctx.save();
