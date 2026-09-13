@@ -72,12 +72,12 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .scan-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
 .progress-container { height: 3px; background: rgba(255, 255, 255, 0.05); width: 100%; }
 .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.05s linear; }
-.tab-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0 12px; margin-top: 12px; }
+.tab-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 0 12px; margin-top: 12px; }
 .tab-btn {
     padding: 8px 4px;
     border-radius: 8px;
     font-weight: 800;
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #94a3b8;
@@ -93,17 +93,6 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     border-color: var(--manga-cyan);
     color: #fff;
     box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
-}
-.tab-btn.low-risk {
-    background: rgba(255, 234, 0, 0.15);
-    border-color: var(--manga-yellow);
-    color: var(--manga-yellow);
-}
-.tab-btn.low-risk.active {
-    background: rgba(255, 234, 0, 0.3);
-    border-color: var(--manga-yellow);
-    color: #fff;
-    box-shadow: 0 0 12px rgba(255, 234, 0, 0.4);
 }
 .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px 16px; }
 .stat-card {
@@ -140,8 +129,6 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .detail-row { font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; color: #94a3b8; margin-top: 4px; }
 .badge-rank { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 255, 255, 0.1); color: #fff; }
 .badge-bull { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(0, 255, 102, 0.15); color: var(--manga-green); border: 1px solid var(--manga-green); }
-.badge-multi { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 0, 127, 0.15); color: var(--manga-pink); border: 1px solid var(--manga-pink); }
-.badge-lowrisk { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 234, 0, 0.2); color: var(--manga-yellow); border: 1px solid var(--manga-yellow); }
 .val-up { color: var(--manga-green); }
 .val-down { color: var(--manga-red); }
 .chart-modal {
@@ -236,7 +223,7 @@ canvas { display: block; width: 100%; height: 100%; }
     .symbol-title { font-size: 0.8rem; }
     .legend-bar { font-size: 0.5rem; gap: 3px; }
     .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
-    .tab-btn { font-size: 0.65rem; padding: 6px 2px; }
+    .tab-btn { font-size: 0.75rem; padding: 6px 2px; }
 }
 </style>
 </head>
@@ -251,8 +238,6 @@ canvas { display: block; width: 100%; height: 100%; }
 <div class="tab-container">
     <button id="tab15m" class="tab-btn active">⚡15M(<span id="count15m">0</span>)</button>
     <button id="tab1h" class="tab-btn">⚡1H(<span id="count1h">0</span>)</button>
-    <button id="tabMulti" class="tab-btn">🔥共振(<span id="countMulti">0</span>)</button>
-    <button id="tabLowRisk" class="tab-btn low-risk">⭐閃電精選(<span id="countLowRisk">0</span>)</button>
 </div>
 <div class="dashboard">
     <div class="stat-card">
@@ -312,8 +297,6 @@ canvas { display: block; width: 100%; height: 100%; }
 
     let results15M = [];
     let results1H = [];
-    let resultsMulti = [];
-    let resultsLowRisk = [];
     let activeTab = '15m';
     let tickerMap = new Map();
     let currentIndex = -1;
@@ -326,12 +309,8 @@ canvas { display: block; width: 100%; height: 100%; }
         statEntry: document.getElementById('statEntry'),
         count15m: document.getElementById('count15m'),
         count1h: document.getElementById('count1h'),
-        countMulti: document.getElementById('countMulti'),
-        countLowRisk: document.getElementById('countLowRisk'),
         tab15m: document.getElementById('tab15m'),
         tab1h: document.getElementById('tab1h'),
-        tabMulti: document.getElementById('tabMulti'),
-        tabLowRisk: document.getElementById('tabLowRisk'),
         symbolList: document.getElementById('symbolList'),
         chartModal: document.getElementById('chartModal'),
         symbolTitle: document.getElementById('symbolTitle'),
@@ -410,23 +389,6 @@ canvas { display: block; width: 100%; height: 100%; }
         const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
         return (m30 !== null && price >= m30) && (m45 !== null && price >= m45) && (m60 !== null && price >= m60);
     }
-    function checkIsFirstBarLightning(klinesRaw) {
-        const totalLen = klinesRaw.length;
-        if (totalLen < 60) return false;
-        const closes = klinesRaw.map(k => parseFloat(k[4]));
-        const ma1Arr = calculateSMA(closes, 30);
-        const ma2Arr = calculateSMA(closes, 45);
-        const ma3Arr = calculateSMA(closes, 60);
-
-        const nowIdx = totalLen - 1;
-        const prevIdx = totalLen - 2;
-
-        const isNowAbove = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, nowIdx);
-        const isPrevAbove = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, prevIdx);
-
-        return isNowAbove && !isPrevAbove;
-    }
-
     function isBullishAlignment(klinesRaw) {
         const totalLen = klinesRaw.length;
         if (totalLen < 60) return null;
@@ -477,22 +439,9 @@ canvas { display: block; width: 100%; height: 100%; }
             const bull1h = isBullishAlignment(klines1h);
 
             if (!bull15m && !bull1h) return null;
-            let matchCount = 0;
-            if (bull15m) matchCount++;
-            if (bull1h) matchCount++;
-
-            const lightning15m = checkIsFirstBarLightning(klines15m);
-            const lightning1h = checkIsFirstBarLightning(klines1h);
-
-            const isLightningMatch = lightning15m || lightning1h;
-
-            let lightningType = '';
-            if (lightning1h) lightningType = '1H';
-            else if (lightning15m) lightningType = '15M';
 
             return {
-                symbol, bull15m, bull1h, matchCount,
-                isLightningMatch, lightningType,
+                symbol, bull15m, bull1h,
                 currentPrice: (bull15m || bull1h).price,
                 rawKlines: { k15m: klines15m, k1h: klines1h }
             };
@@ -571,9 +520,6 @@ canvas { display: block; width: 100%; height: 100%; }
                         price: m.currentPrice,
                         bull15m: m.bull15m,
                         bull1h: m.bull1h,
-                        matchCount: m.matchCount,
-                        isLightningMatch: m.isLightningMatch,
-                        lightningType: m.lightningType,
                         priceChange24h: ticker ? parseFloat(ticker.priceChangePercent) : 0,
                         quoteVolume24h: ticker ? parseFloat(ticker.quoteVolume) : 0
                     };
@@ -581,19 +527,13 @@ canvas { display: block; width: 100%; height: 100%; }
 
                 results15M = allMatches.filter(m => m.bull15m);
                 results1H = allMatches.filter(m => m.bull1h);
-                resultsMulti = allMatches.filter(m => m.matchCount >= 2);
-                resultsLowRisk = allMatches.filter(m => m.isLightningMatch);
 
                 const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
                 results15M.sort(sortByChange);
                 results1H.sort(sortByChange);
-                resultsMulti.sort(sortByChange);
-                resultsLowRisk.sort(sortByChange);
 
                 dom.count15m.innerText = results15M.length;
                 dom.count1h.innerText = results1H.length;
-                dom.countMulti.innerText = resultsMulti.length;
-                dom.countLowRisk.innerText = resultsLowRisk.length;
 
                 dom.scanBtn.disabled = false;
                 dom.scanBtn.innerText = "啟動極速掃描";
@@ -606,8 +546,6 @@ canvas { display: block; width: 100%; height: 100%; }
         switch (activeTab) {
             case '15m': return results15M;
             case '1h': return results1H;
-            case 'multi': return resultsMulti;
-            case 'lowRisk': return resultsLowRisk;
             default: return [];
         }
     }
@@ -630,28 +568,13 @@ canvas { display: block; width: 100%; height: 100%; }
             const chg24Class = item.priceChange24h >= 0 ? 'val-up' : 'val-down';
             const chg24Sign = item.priceChange24h >= 0 ? '+' : '';
 
-            let matchBadges = [];
-            if (item.bull15m) matchBadges.push("15M");
-            if (item.bull1h) matchBadges.push("1H");
-
-            let badgeHtml = '';
-            if (activeTab === 'lowRisk') {
-                badgeHtml = `<span class="badge-lowrisk">⚡ ${item.lightningType} 閃電第一根</span>`;
-            } else if (item.matchCount >= 2) {
-                badgeHtml = `<span class="badge-multi">🔥 雙週期共振 (${matchBadges.join('+')})</span>`;
-            } else {
-                badgeHtml = `<span class="badge-bull">⚡ ${matchBadges.join('/')} 多頭</span>`;
-            }
+            let badgeHtml = `<span class="badge-bull">⚡ 多頭排列</span>`;
 
             let distText = '';
-            if (activeTab === 'lowRisk') {
-                distText = `觸發週期: <span class="val-up">${item.lightningType} 週期出現閃電突破訊號</span>`;
-            } else if (activeTab === '15m' && item.bull15m) {
+            if (activeTab === '15m' && item.bull15m) {
                 distText = `距 15M 60MA: <span class="val-up">+${item.bull15m.ma3DistPercent.toFixed(2)}%</span>`;
             } else if (activeTab === '1h' && item.bull1h) {
                 distText = `距 1H 60MA: <span class="val-up">+${item.bull1h.ma3DistPercent.toFixed(2)}%</span>`;
-            } else {
-                distText = `滿足週期: <span class="val-up">${matchBadges.join(', ')}</span>`;
             }
 
             card.innerHTML = `
@@ -999,15 +922,13 @@ canvas { display: block; width: 100%; height: 100%; }
 
     function switchTab(tabKey, targetBtn) {
         activeTab = tabKey;
-        [dom.tab15m, dom.tab1h, dom.tabMulti, dom.tabLowRisk].forEach(b => b.classList.remove('active'));
+        [dom.tab15m, dom.tab1h].forEach(b => b.classList.remove('active'));
         targetBtn.classList.add('active');
         renderList();
     }
 
     dom.tab15m.addEventListener('click', () => switchTab('15m', dom.tab15m));
     dom.tab1h.addEventListener('click', () => switchTab('1h', dom.tab1h));
-    dom.tabMulti.addEventListener('click', () => switchTab('multi', dom.tabMulti));
-    dom.tabLowRisk.addEventListener('click', () => switchTab('lowRisk', dom.tabLowRisk));
 
     dom.scanBtn.addEventListener('click', startScan);
     dom.closeModalBtn.addEventListener('click', closeChartModal);
