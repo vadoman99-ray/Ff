@@ -453,8 +453,11 @@ canvas { display: block; width: 100%; height: 100%; }
             const bull15m = isBullishAlignment(klines15m);
             const volBull15m = isVolumeBullishAlignment(klines15m);
 
+            // 必須同時滿足 15M 均量排列 (5vm > 10vm > 20vm)
+            if (!volBull15m) return null;
+
             return {
-                symbol, bull15m: (bull15m && volBull15m) ? bull15m : null, bull1h,
+                symbol, bull15m: bull15m ? bull15m : null, bull1h,
                 currentPrice: bull1h.price,
                 rawKlines: { k15m: klines15m, k1h: klines1h }
             };
@@ -536,7 +539,7 @@ canvas { display: block; width: 100%; height: 100%; }
                     };
                 });
 
-                results15M = allMatches.filter(m => m.bull15m);
+                results15M = allMatches;
                 results1H = allMatches;
 
                 const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
@@ -579,10 +582,7 @@ canvas { display: block; width: 100%; height: 100%; }
             const chg24Class = item.priceChange24h >= 0 ? 'val-up' : 'val-down';
             const chg24Sign = item.priceChange24h >= 0 ? '+' : '';
 
-            let badgeHtml = `<span class="badge-bull">⚡ 1H>60MA</span>`;
-            if (activeTab === '15m' && item.bull15m) {
-                badgeHtml += ` <span class="badge-bull" style="background:rgba(0,240,255,0.15); color:var(--manga-cyan); border-color:var(--manga-cyan);">⚡ 15M 5VM>10VM>20VM</span>`;
-            }
+            let badgeHtml = `<span class="badge-bull">⚡ 1H>60MA</span> <span class="badge-bull" style="background:rgba(0,240,255,0.15); color:var(--manga-cyan); border-color:var(--manga-cyan);">⚡ 15M 5VM>10VM>20VM</span>`;
 
             let distText = '';
             if (activeTab === '15m' && item.bull15m) {
