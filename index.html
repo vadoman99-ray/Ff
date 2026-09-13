@@ -629,7 +629,6 @@ canvas { display: block; width: 100%; height: 100%; }
         const vm20All = calculateSMA(volumesAll, 20);
 
         const actualShowCount = Math.min(showCount, klinesRaw.length);
-        const showStartIndex = klinesRaw.length - actualShowCount;
 
         const showK = klinesRaw.slice(-actualShowCount);
         const showMA5 = ma5All.slice(-actualShowCount);
@@ -650,11 +649,14 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
-        const padding = { top: 18, bottom: 4, left: 6, right: 55 };
+        // 優化畫布邊距：為右側價格刻度預留乾淨空間，並微調上下間距
+        const padding = { top: 16, bottom: 12, left: 6, right: 62 };
         const totalH = height - padding.top - padding.bottom;
-        const priceH = totalH * 0.65;
-        const volH = totalH * 0.25;
-        const volTop = padding.top + priceH + totalH * 0.10;
+        
+        // 精準配置主圖與副圖 (成交量) 比例：主圖 68%，成交量 24%，間隔 8%
+        const priceH = totalH * 0.66;
+        const volH = totalH * 0.22;
+        const volTop = padding.top + priceH + totalH * 0.12;
         const chartW = width - padding.left - padding.right;
 
         let minP = Infinity, maxP = -Infinity;
@@ -664,11 +666,17 @@ canvas { display: block; width: 100%; height: 100%; }
             if (h > maxP) maxP = h;
         });
 
+        // 價格上下保留 1.5% 緩衝空間，避免K棒頂到天花板或地板
+        const pPadding = (maxP - minP) * 0.015;
+        minP -= pPadding;
+        maxP += pPadding;
+
         let maxVol = -Infinity;
         showK.forEach(k => {
             const v = parseFloat(k[5]);
             if (v > maxVol) maxVol = v;
         });
+        maxVol = maxVol * 1.15; // 成交量頂部預留空間
 
         const priceRange = maxP - minP || 1;
         const getYPrice = (p) => padding.top + priceH - ((p - minP) / priceRange) * priceH;
@@ -677,13 +685,14 @@ canvas { display: block; width: 100%; height: 100%; }
 
         ctx.clearRect(0, 0, width, height);
 
+        // 繪製背景網格與價格標籤
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.fillStyle = '#64748b';
-        ctx.font = '8px JetBrains Mono';
+        ctx.font = '9px JetBrains Mono';
         ctx.textAlign = 'left';
         ctx.lineWidth = 1;
 
-        const gridLines = 1;
+        const gridLines = 3;
         for (let i = 0; i <= gridLines; i++) {
             const y = padding.top + (priceH / gridLines) * i;
             const pVal = maxP - (priceRange / gridLines) * i;
@@ -691,19 +700,23 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.moveTo(padding.left, y);
             ctx.lineTo(width - padding.right, y);
             ctx.stroke();
-            ctx.fillText(pVal.toFixed(1), width - padding.right + 3, y + 3);
+            ctx.fillText(pVal >= 10 ? pVal.toFixed(2) : pVal.toFixed(4), width - padding.right + 4, y + 3);
         }
 
+        // 成交量底部分隔線與最高量標籤
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.beginPath();
         ctx.moveTo(padding.left, volTop);
         ctx.lineTo(width - padding.right, volTop);
         ctx.stroke();
 
-        const formatVol = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : (v / 1e3).toFixed(0) + 'K';
-        ctx.fillText(formatVol(maxVol), width - padding.right + 3, volTop + 6);
+        const formatVol = (v) => v >= 1e8 ? (v / 1e8).toFixed(1) + '億' : (v >= 1e4 ? (v / 1e4).toFixed(0) + '萬' : v.toFixed(0));
+        ctx.fillText(formatVol(maxVol), width - padding.right + 4, volTop + 6);
+        ctx.fillText('Vol', width - padding.right + 4, volTop + volH - 2);
 
         const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
 
+        // 時間與週一跨度垂直虛線
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
@@ -715,9 +728,9 @@ canvas { display: block; width: 100%; height: 100%; }
             const isDailyStart = (utcHour === 0 && utcMin === 0);
 
             if (isMondayStart) {
-                ctx.strokeStyle = 'rgba(157, 78, 221, 0.75)';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([3, 3]);
+                ctx.strokeStyle = 'rgba(157, 78, 221, 0.65)';
+                ctx.lineWidth = 1.2;
+                ctx.setLineDash([2, 2]);
                 const x = padding.left + i * barWidth + barWidth / 2;
                 ctx.beginPath();
                 ctx.moveTo(x, padding.top);
@@ -728,24 +741,17 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.font = 'bold 8px JetBrains Mono';
                 ctx.fillStyle = '#9d4edd';
                 ctx.textAlign = 'center';
-                ctx.fillText('週一', x, padding.top - 5);
+                ctx.fillText('週一', x, padding.top - 4);
                 ctx.restore();
-            } else if (isDailyStart && periodType !== '1d') {
-                ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
-                ctx.lineWidth = 1.2;
-                ctx.setLineDash([3, 3]);
+            } else if (isDailyStart && periodType !== '1d' && periodType !== '4h') {
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([2, 2]);
                 const x = padding.left + i * barWidth + barWidth / 2;
                 ctx.beginPath();
                 ctx.moveTo(x, padding.top);
                 ctx.lineTo(x, padding.top + totalH);
                 ctx.stroke();
-
-                ctx.save();
-                ctx.font = '7px JetBrains Mono';
-                ctx.fillStyle = '#00f0ff';
-                ctx.textAlign = 'center';
-                ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 5);
-                ctx.restore();
             }
         });
 
@@ -775,34 +781,42 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.restore();
         };
 
-        drawLine(showMA5, '#00ff66', getYPrice);
-        drawLine(showMA30, '#ffea00', getYPrice);
-        drawLine(showMA45, '#ff9100', getYPrice);
-        drawLine(showMA60, '#ff007f', getYPrice);
+        // 繪製均線與成交量均線
+        drawLine(showMA5, '#00ff66', getYPrice, 1.1);
+        drawLine(showMA30, '#ffea00', getYPrice, 1.1);
+        drawLine(showMA45, '#ff9100', getYPrice, 1.1);
+        drawLine(showMA60, '#ff007f', getYPrice, 1.2);
         drawLine(showVM5, '#00f0ff', getYVol, 0.9);
         drawLine(showVM20, '#9d4edd', getYVol, 0.9);
 
+        // 繪製精緻 K 棒與成交量柱狀圖
         showK.forEach((k, i) => {
             const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]), vol = parseFloat(k[5]);
             const x = padding.left + i * barWidth + barWidth / 2;
             const isUp = close >= open;
             const color = isUp ? '#00ff66' : '#ff2a6d';
 
+            // 影線
             ctx.strokeStyle = color;
-            ctx.fillStyle = color;
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(x, getYPrice(high));
             ctx.lineTo(x, getYPrice(low));
             ctx.stroke();
 
+            // 實體 K 棒
             const yOpen = getYPrice(open);
             const yClose = getYPrice(close);
             const bodyTop = Math.min(yOpen, yClose);
             const bodyH = Math.max(Math.abs(yOpen - yClose), 1);
-            const bw = Math.max(barWidth * 0.7, 1);
+            
+            // 智慧調整柱寬：空間充裕時帶有完美間距，數量多時自動緊鄰
+            const bw = Math.max(barWidth * 0.75, 1);
+            ctx.fillStyle = color;
             ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH);
 
-            ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.4)' : 'rgba(255, 42, 109, 0.4)';
+            // 成交量柱狀圖 (配合漲跌色彩帶點透明質感)
+            ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.35)' : 'rgba(255, 42, 109, 0.35)';
             const vY = getYVol(vol);
             ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
         });
