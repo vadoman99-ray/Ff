@@ -406,6 +406,22 @@ canvas { display: block; width: 100%; height: 100%; }
         return null;
     }
 
+    function isVolumeBullishAlignment(klinesRaw) {
+        const totalLen = klinesRaw.length;
+        if (totalLen < 20) return false;
+        const volumes = klinesRaw.map(k => parseFloat(k[5]));
+        const vm5 = calculateSMA(volumes, 5);
+        const vm10 = calculateSMA(volumes, 10);
+        const vm20 = calculateSMA(volumes, 20);
+
+        const v5 = vm5[totalLen - 1];
+        const v10 = vm10[totalLen - 1];
+        const v20 = vm20[totalLen - 1];
+
+        if (v5 === null || v10 === null || v20 === null) return false;
+        return v5 > v10 && v10 > v20;
+    }
+
     async function fetchWithRetry(url, retries = 3, delay = 500) {
         for (let i = 0; i < retries; i++) {
             try {
@@ -435,9 +451,10 @@ canvas { display: block; width: 100%; height: 100%; }
             if (!bull1h) return null;
 
             const bull15m = isBullishAlignment(klines15m);
+            const volBull15m = isVolumeBullishAlignment(klines15m);
 
             return {
-                symbol, bull15m, bull1h,
+                symbol, bull15m: (bull15m && volBull15m) ? bull15m : null, bull1h,
                 currentPrice: bull1h.price,
                 rawKlines: { k15m: klines15m, k1h: klines1h }
             };
@@ -565,6 +582,9 @@ canvas { display: block; width: 100%; height: 100%; }
             const chg24Sign = item.priceChange24h >= 0 ? '+' : '';
 
             let badgeHtml = `<span class="badge-bull">⚡ 1H>60MA</span>`;
+            if (activeTab === '15m' && item.bull15m) {
+                badgeHtml += ` <span class="badge-bull" style="background:rgba(0,240,255,0.15); color:var(--manga-cyan); border-color:var(--manga-cyan);">⚡ 15M 5VM>10VM>20VM</span>`;
+            }
 
             let distText = '';
             if (activeTab === '15m' && item.bull15m) {
@@ -606,7 +626,6 @@ canvas { display: block; width: 100%; height: 100%; }
         const ma60All = calculateSMA(closesAll, P3);
         const boll60 = calculateBollingerBands(closesAll, P_BOLL, 2);
         
-        // 均量線 5VM, 10VM, 20VM
         const vm5All = calculateSMA(volumesAll, 5);
         const vm10All = calculateSMA(volumesAll, 10);
         const vm20All = calculateSMA(volumesAll, 20);
@@ -778,7 +797,6 @@ canvas { display: block; width: 100%; height: 100%; }
         drawLine(showMA45, '#ff9100', getYPrice);
         drawLine(showMA60, '#ff007f', getYPrice);
 
-        // 渲染均量線：5VM (青色)、10VM (橘色)、20VM (紫色)
         drawLine(showVM5, '#00f0ff', getYVol, 0.9);
         drawLine(showVM10, '#ff9100', getYVol, 0.9);
         drawLine(showVM20, '#9d4edd', getYVol, 0.9);
