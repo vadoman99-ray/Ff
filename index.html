@@ -437,7 +437,7 @@ canvas { display: block; width: 100%; height: 100%; }
         return v5 > v10 && v10 > v20;
     }
 
-    async function fetchWithRetry(url, retries = 3, delay = 500) {
+    async function fetchWithRetry(url, retries = 2, delay = 200) {
         for (let i = 0; i < retries; i++) {
             try {
                 const res = await fetch(url);
@@ -468,7 +468,6 @@ canvas { display: block; width: 100%; height: 100%; }
             const bull15m = checkBullishAlignment(klines15m);
             const volBull15m = isVolumeBullishAlignment(klines15m);
 
-            // 必須同時滿足 15M 價格大於 30MA、45MA、60MA，且 15M 均量排列 (5vm > 10vm > 20vm)
             if (!bull15m || !volBull15m) return null;
 
             return {
@@ -483,7 +482,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
     self.onmessage = async function(e) {
         const { symbols, apiBase, limits } = e.data;
-        const concurrency = 8;
+        const concurrency = 16; // 提升併發數至 16，加快網路並行請求
         let completed = 0;
         const matches = [];
 
@@ -493,7 +492,7 @@ canvas { display: block; width: 100%; height: 100%; }
             chunkResults.filter(Boolean).forEach(res => matches.push(res));
             completed += chunk.length;
             self.postMessage({ type: 'progress', completed, total: symbols.length });
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 10)); // 縮短批次間隔
         }
         self.postMessage({ type: 'done', matches });
     };
