@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>⚡ 極速雙週期多頭排列儀表板</title>
+<title>⚡ 極速多週期多頭排列儀表板 (>1億USDT)</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap');
 :root {
@@ -72,12 +72,12 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .scan-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
 .progress-container { height: 3px; background: rgba(255, 255, 255, 0.05); width: 100%; }
 .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.05s linear; }
-.tab-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 0 12px; margin-top: 12px; }
+.tab-container { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; padding: 0 12px; margin-top: 12px; }
 .tab-btn {
-    padding: 8px 4px;
+    padding: 8px 2px;
     border-radius: 8px;
     font-weight: 800;
-    font-size: 0.85rem;
+    font-size: 0.65rem;
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #94a3b8;
@@ -93,6 +93,17 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     border-color: var(--manga-cyan);
     color: #fff;
     box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+.tab-btn.low-risk {
+    background: rgba(255, 234, 0, 0.15);
+    border-color: var(--manga-yellow);
+    color: var(--manga-yellow);
+}
+.tab-btn.low-risk.active {
+    background: rgba(255, 234, 0, 0.3);
+    border-color: var(--manga-yellow);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(255, 234, 0, 0.4);
 }
 .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px 16px; }
 .stat-card {
@@ -129,6 +140,8 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .detail-row { font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; color: #94a3b8; margin-top: 4px; }
 .badge-rank { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 255, 255, 0.1); color: #fff; }
 .badge-bull { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(0, 255, 102, 0.15); color: var(--manga-green); border: 1px solid var(--manga-green); }
+.badge-multi { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 0, 127, 0.15); color: var(--manga-pink); border: 1px solid var(--manga-pink); }
+.badge-lowrisk { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 234, 0, 0.2); color: var(--manga-yellow); border: 1px solid var(--manga-yellow); }
 .val-up { color: var(--manga-green); }
 .val-down { color: var(--manga-red); }
 .chart-modal {
@@ -223,14 +236,14 @@ canvas { display: block; width: 100%; height: 100%; }
     .symbol-title { font-size: 0.8rem; }
     .legend-bar { font-size: 0.5rem; gap: 3px; }
     .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
-    .tab-btn { font-size: 0.75rem; padding: 6px 2px; }
+    .tab-btn { font-size: 0.55rem; padding: 6px 1px; }
 }
 </style>
 </head>
 <body>
 <div class="app-header">
     <div class="header-top">
-        <div class="header-title">⚡ 雙週期多頭排列儀表板</div>
+        <div class="header-title">⚡ 多週期多頭排列儀表板 (>1億USDT)</div>
         <button id="scanBtn" class="scan-btn">啟動極速掃描</button>
     </div>
 </div>
@@ -238,11 +251,15 @@ canvas { display: block; width: 100%; height: 100%; }
 <div class="tab-container">
     <button id="tab15m" class="tab-btn active">⚡15M(<span id="count15m">0</span>)</button>
     <button id="tab1h" class="tab-btn">⚡1H(<span id="count1h">0</span>)</button>
+    <button id="tab4h" class="tab-btn">⚡4H(<span id="count4h">0</span>)</button>
+    <button id="tab1d" class="tab-btn">⚡1D(<span id="count1d">0</span>)</button>
+    <button id="tabMulti" class="tab-btn">🔥共振(<span id="countMulti">0</span>)</button>
+    <button id="tabLowRisk" class="tab-btn low-risk">⭐閃電精選(<span id="countLowRisk">0</span>)</button>
 </div>
 <div class="dashboard">
     <div class="stat-card">
         <div class="val" id="statTotal" style="color:var(--manga-cyan)">0</div>
-        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數（>=1000萬）</div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數 (>1億USDT)</div>
     </div>
     <div class="stat-card entry">
         <div class="val" id="statEntry">0</div>
@@ -265,9 +282,7 @@ canvas { display: block; width: 100%; height: 100%; }
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60布林軌</div>
                 <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>5VM</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>10VM</div>
                 <div class="legend-item"><div class="legend-color" style="background:#9d4edd"></div>20VM</div>
             </div>
             <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
@@ -281,6 +296,14 @@ canvas { display: block; width: 100%; height: 100%; }
                 <span class="panel-tag" id="tagText1h">1H</span>
                 <canvas id="klineCanvas1h"></canvas>
             </div>
+            <div class="chart-panel" id="wrapper4h" data-period="4h">
+                <span class="panel-tag" id="tagText4h">4H</span>
+                <canvas id="klineCanvas4h"></canvas>
+            </div>
+            <div class="chart-panel" id="wrapper1d" data-period="1d">
+                <span class="panel-tag" id="tagText1d">1D</span>
+                <canvas id="klineCanvas1d"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -288,17 +311,24 @@ canvas { display: block; width: 100%; height: 100%; }
 <script>
 (() => {
     const API_BASE = 'https://fapi.binance.com';
-    const MIN_QUOTE_VOLUME = 10000000; // 成交額門檻：1,000萬 USDT
-    const P0 = 5, P1 = 30, P2 = 45, P3 = 60, P_BOLL = 60;
-    const COUNT_15M = 60;
-    const COUNT_1H = 30;
+    const P0 = 5, P1 = 30, P2 = 45, P3 = 60;
+    const COUNT_15M = 150;
+    const COUNT_1H = 80;
+    const COUNT_4H = 48;
+    const COUNT_1D = 28;
     const MAX_VM_PERIOD = 20;
 
-    const FETCH_LIMIT_15M = COUNT_15M + Math.max(P3, P_BOLL, MAX_VM_PERIOD);
-    const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, P_BOLL, MAX_VM_PERIOD);
+    const FETCH_LIMIT_15M = COUNT_15M + Math.max(P3, MAX_VM_PERIOD);
+    const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, MAX_VM_PERIOD);
+    const FETCH_LIMIT_4H = COUNT_4H + Math.max(P3, MAX_VM_PERIOD);
+    const FETCH_LIMIT_1D = COUNT_1D + Math.max(P3, MAX_VM_PERIOD);
 
     let results15M = [];
     let results1H = [];
+    let results4H = [];
+    let results1D = [];
+    let resultsMulti = [];
+    let resultsLowRisk = [];
     let activeTab = '15m';
     let tickerMap = new Map();
     let currentIndex = -1;
@@ -311,8 +341,16 @@ canvas { display: block; width: 100%; height: 100%; }
         statEntry: document.getElementById('statEntry'),
         count15m: document.getElementById('count15m'),
         count1h: document.getElementById('count1h'),
+        count4h: document.getElementById('count4h'),
+        count1d: document.getElementById('count1d'),
+        countMulti: document.getElementById('countMulti'),
+        countLowRisk: document.getElementById('countLowRisk'),
         tab15m: document.getElementById('tab15m'),
         tab1h: document.getElementById('tab1h'),
+        tab4h: document.getElementById('tab4h'),
+        tab1d: document.getElementById('tab1d'),
+        tabMulti: document.getElementById('tabMulti'),
+        tabLowRisk: document.getElementById('tabLowRisk'),
         symbolList: document.getElementById('symbolList'),
         chartModal: document.getElementById('chartModal'),
         symbolTitle: document.getElementById('symbolTitle'),
@@ -323,14 +361,22 @@ canvas { display: block; width: 100%; height: 100%; }
         chartsWrapper: document.getElementById('chartsWrapper'),
         wrapper15m: document.getElementById('wrapper15m'),
         wrapper1h: document.getElementById('wrapper1h'),
+        wrapper4h: document.getElementById('wrapper4h'),
+        wrapper1d: document.getElementById('wrapper1d'),
         canvas15m: document.getElementById('klineCanvas15m'),
         canvas1h: document.getElementById('klineCanvas1h'),
+        canvas4h: document.getElementById('klineCanvas4h'),
+        canvas1d: document.getElementById('klineCanvas1d'),
         tagText15m: document.getElementById('tagText15m'),
-        tagText1h: document.getElementById('tagText1h')
+        tagText1h: document.getElementById('tagText1h'),
+        tagText4h: document.getElementById('tagText4h'),
+        tagText1d: document.getElementById('tagText1d')
     };
 
     const ctx15m = dom.canvas15m.getContext('2d');
     const ctx1h = dom.canvas1h.getContext('2d');
+    const ctx4h = dom.canvas4h.getContext('2d');
+    const ctx1d = dom.canvas1d.getContext('2d');
 
     function calculateSMA(data, period) {
         const len = data.length;
@@ -346,34 +392,9 @@ canvas { display: block; width: 100%; height: 100%; }
         return ma;
     }
 
-    function calculateBollingerBands(data, period, multiplier = 2) {
-        const len = data.length;
-        const sma = calculateSMA(data, period);
-        const upper = new Array(len).fill(null);
-        const lower = new Array(len).fill(null);
-
-        for (let i = period - 1; i < len; i++) {
-            const mean = sma[i];
-            if (mean === null) continue;
-            let varianceSum = 0;
-            for (let j = i - period + 1; j <= i; j++) {
-                varianceSum += Math.pow(data[j] - mean, 2);
-            }
-            const stdDev = Math.sqrt(varianceSum / period);
-            upper[i] = mean + multiplier * stdDev;
-            lower[i] = mean - multiplier * stdDev;
-        }
-        return { middle: sma, upper, lower };
-    }
-
     function formatVolumeText(volume) {
         const yi = volume / 100000000;
-        if (yi >= 1) {
-            return yi.toFixed(2) + '億';
-        } else {
-            const wan = volume / 10000;
-            return wan.toFixed(0) + '萬';
-        }
+        return yi.toFixed(2) + '億';
     }
 
     const workerCode = `
@@ -390,55 +411,68 @@ canvas { display: block; width: 100%; height: 100%; }
         }
         return ma;
     }
-    
-    function checkBullishAlignment(klinesRaw) {
+    function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
+        if (idx < 0 || idx >= closes.length) return false;
+        const price = closes[idx];
+        return (ma5[idx] !== null && price >= ma5[idx]) &&
+               (ma30[idx] !== null && price >= ma30[idx]) &&
+               (ma45[idx] !== null && price >= ma45[idx]) &&
+               (ma60[idx] !== null && price >= ma60[idx]);
+    }
+    function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
+        if (idx < 0 || idx >= closes.length) return false;
+        const price = closes[idx];
+        const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
+        return (m30 !== null && price >= m30) && (m45 !== null && price >= m45) && (m60 !== null && price >= m60);
+    }
+    function checkIsFirstBarLightning(klinesRaw, is4hOr1d) {
+        const totalLen = klinesRaw.length;
+        if (totalLen < 60) return false;
+        const closes = klinesRaw.map(k => parseFloat(k[4]));
+        const ma1Arr = calculateSMA(closes, 30);
+        const ma2Arr = calculateSMA(closes, 45);
+        const ma3Arr = calculateSMA(closes, 60);
+        const ma5Arr = calculateSMA(closes, 5);
+
+        const nowIdx = totalLen - 1;
+        const prevIdx = totalLen - 2;
+
+        let isNowAbove = false;
+        let isPrevAbove = false;
+
+        if (is4hOr1d) {
+            isNowAbove = checkAboveMAs5_30_45_60(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, nowIdx);
+            isPrevAbove = checkAboveMAs5_30_45_60(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, prevIdx);
+        } else {
+            isNowAbove = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, nowIdx);
+            isPrevAbove = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, prevIdx);
+        }
+
+        return isNowAbove && !isPrevAbove;
+    }
+
+    function isBullishAlignment(klinesRaw) {
         const totalLen = klinesRaw.length;
         if (totalLen < 60) return null;
         const closes = klinesRaw.map(k => parseFloat(k[4]));
         const price = closes[totalLen - 1];
-        
-        const ma30Arr = calculateSMA(closes, 30);
-        const ma45Arr = calculateSMA(closes, 45);
-        const ma60Arr = calculateSMA(closes, 60);
-        
-        const ma30 = ma30Arr[totalLen - 1];
-        const ma45 = ma45Arr[totalLen - 1];
-        const ma60 = ma60Arr[totalLen - 1];
-
-        if (ma30 !== null && ma45 !== null && ma60 !== null && price >= ma30 && price >= ma45 && price >= ma60) {
-            const ma3DistPercent = ((price - ma60) / ma60) * 100;
-            const isAboveAllNow = true;
-            const isAboveAllPrev = (
-                ma30Arr[totalLen - 2] !== null && 
-                ma45Arr[totalLen - 2] !== null && 
-                ma60Arr[totalLen - 2] !== null && 
-                closes[totalLen - 2] >= ma30Arr[totalLen - 2] && 
-                closes[totalLen - 2] >= ma45Arr[totalLen - 2] && 
-                closes[totalLen - 2] >= ma60Arr[totalLen - 2]
-            );
+        const ma1Arr = calculateSMA(closes, 30);
+        const ma2Arr = calculateSMA(closes, 45);
+        const ma3Arr = calculateSMA(closes, 60);
+        const ma1 = ma1Arr[totalLen - 1];
+        const ma2 = ma2Arr[totalLen - 1];
+        const ma3 = ma3Arr[totalLen - 1];
+        if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
+            const ma3DistPercent = ((price - ma3) / ma3) * 100;
+            const isAboveAllNow = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
+            const isAboveAllPrev = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
             const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
             return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
         }
         return null;
     }
 
-    function isVolumeBullishAlignment(klinesRaw) {
-        const totalLen = klinesRaw.length;
-        if (totalLen < 20) return false;
-        const volumes = klinesRaw.map(k => parseFloat(k[5]));
-        const vm5 = calculateSMA(volumes, 5);
-        const vm10 = calculateSMA(volumes, 10);
-        const vm20 = calculateSMA(volumes, 20);
-
-        const v5 = vm5[totalLen - 1];
-        const v10 = vm10[totalLen - 1];
-        const v20 = vm20[totalLen - 1];
-
-        if (v5 === null || v10 === null || v20 === null) return false;
-        return v5 > v10 && v10 > v20;
-    }
-
-    async function fetchWithRetry(url, retries = 2, delay = 100) {
+    async function fetchWithRetry(url, retries = 3, delay = 500) {
         for (let i = 0; i < retries; i++) {
             try {
                 const res = await fetch(url);
@@ -458,23 +492,41 @@ canvas { display: block; width: 100%; height: 100%; }
 
     async function fetchSymbol(symbol, apiBase, limits) {
         try {
-            const [klines15m, klines1h] = await Promise.all([
+            const [klines15m, klines1h, klines4h, klines1d] = await Promise.all([
                 fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=15m&limit=\${limits.l15m}\`),
-                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`)
+                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`),
+                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=4h&limit=\${limits.l4h}\`),
+                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1d&limit=\${limits.l1d}\`)
             ]);
 
-            const bull1h = checkBullishAlignment(klines1h);
-            if (!bull1h) return null;
+            const bull15m = isBullishAlignment(klines15m);
+            const bull1h = isBullishAlignment(klines1h);
+            const bull4hReal = isBullishAlignment(klines4h);
+            const bull1dReal = isBullishAlignment(klines1d);
 
-            const bull15m = checkBullishAlignment(klines15m);
-            const volBull15m = isVolumeBullishAlignment(klines15m);
+            if (!bull15m && !bull1h && !bull4hReal && !bull1dReal) return null;
+            let matchCount = 0;
+            if (bull15m) matchCount++;
+            if (bull1h) matchCount++;
+            if (bull4hReal) matchCount++;
+            if (bull1dReal) matchCount++;
 
-            if (!bull15m || !volBull15m) return null;
+            const lightning1h = checkIsFirstBarLightning(klines1h, false);
+            const lightning4h = checkIsFirstBarLightning(klines4h, true);
+            const lightning1d = checkIsFirstBarLightning(klines1d, true);
+
+            const isLightningMatch = lightning1h || lightning4h || lightning1d;
+
+            let lightningType = '';
+            if (lightning1d) lightningType = '1D';
+            else if (lightning4h) lightningType = '4H';
+            else if (lightning1h) lightningType = '1H';
 
             return {
-                symbol, bull15m, bull1h,
-                currentPrice: bull1h.price,
-                rawKlines: { k15m: klines15m, k1h: klines1h }
+                symbol, bull15m, bull1h, bull4h: bull4hReal, bull1d: bull1dReal, matchCount,
+                isLightningMatch, lightningType,
+                currentPrice: (bull15m || bull1h || bull4hReal || bull1dReal).price,
+                rawKlines: { k15m: klines15m, k1h: klines1h, k4h: klines4h, k1d: klines1d }
             };
         } catch {
             return null;
@@ -483,7 +535,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
     self.onmessage = async function(e) {
         const { symbols, apiBase, limits } = e.data;
-        const concurrency = 24;
+        const concurrency = 8;
         let completed = 0;
         const matches = [];
 
@@ -493,7 +545,7 @@ canvas { display: block; width: 100%; height: 100%; }
             chunkResults.filter(Boolean).forEach(res => matches.push(res));
             completed += chunk.length;
             self.postMessage({ type: 'progress', completed, total: symbols.length });
-            await new Promise(r => setTimeout(r, 4));
+            await new Promise(r => setTimeout(r, 50));
         }
         self.postMessage({ type: 'done', matches });
     };
@@ -520,12 +572,10 @@ canvas { display: block; width: 100%; height: 100%; }
             return;
         }
 
-        // 過濾結尾為 USDT 且 24H 成交額大於等於 1,000 萬 USDT 的標的
+        const MIN_VOLUME = 100000000;
         const candidateSymbols = Array.from(tickerMap.keys()).filter(sym => {
             if (!sym.endsWith('USDT')) return false;
-            const ticker = tickerMap.get(sym);
-            const quoteVol = ticker ? parseFloat(ticker.quoteVolume) : 0;
-            return quoteVol >= MIN_QUOTE_VOLUME;
+            return parseFloat(tickerMap.get(sym).quoteVolume) > MIN_VOLUME;
         });
 
         dom.statTotal.innerText = candidateSymbols.length;
@@ -536,7 +586,7 @@ canvas { display: block; width: 100%; height: 100%; }
         worker.postMessage({
             symbols: candidateSymbols,
             apiBase: API_BASE,
-            limits: { l15m: FETCH_LIMIT_15M, l1h: FETCH_LIMIT_1H }
+            limits: { l15m: FETCH_LIMIT_15M, l1h: FETCH_LIMIT_1H, l4h: FETCH_LIMIT_4H, l1d: FETCH_LIMIT_1D }
         });
 
         worker.onmessage = (e) => {
@@ -553,20 +603,37 @@ canvas { display: block; width: 100%; height: 100%; }
                         price: m.currentPrice,
                         bull15m: m.bull15m,
                         bull1h: m.bull1h,
+                        bull4h: m.bull4h,
+                        bull1d: m.bull1d,
+                        matchCount: m.matchCount,
+                        isLightningMatch: m.isLightningMatch,
+                        lightningType: m.lightningType,
                         priceChange24h: ticker ? parseFloat(ticker.priceChangePercent) : 0,
                         quoteVolume24h: ticker ? parseFloat(ticker.quoteVolume) : 0
                     };
                 });
 
-                results15M = allMatches;
-                results1H = allMatches;
+                results15M = allMatches.filter(m => m.bull15m);
+                results1H = allMatches.filter(m => m.bull1h);
+                results4H = allMatches.filter(m => m.bull4h);
+                results1D = allMatches.filter(m => m.bull1d);
+                resultsMulti = allMatches.filter(m => m.matchCount >= 2);
+                resultsLowRisk = allMatches.filter(m => m.isLightningMatch);
 
                 const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
                 results15M.sort(sortByChange);
                 results1H.sort(sortByChange);
+                results4H.sort(sortByChange);
+                results1D.sort(sortByChange);
+                resultsMulti.sort(sortByChange);
+                resultsLowRisk.sort(sortByChange);
 
                 dom.count15m.innerText = results15M.length;
                 dom.count1h.innerText = results1H.length;
+                dom.count4h.innerText = results4H.length;
+                dom.count1d.innerText = results1D.length;
+                dom.countMulti.innerText = resultsMulti.length;
+                dom.countLowRisk.innerText = resultsLowRisk.length;
 
                 dom.scanBtn.disabled = false;
                 dom.scanBtn.innerText = "啟動極速掃描";
@@ -579,6 +646,10 @@ canvas { display: block; width: 100%; height: 100%; }
         switch (activeTab) {
             case '15m': return results15M;
             case '1h': return results1H;
+            case '4h': return results4H;
+            case '1d': return results1D;
+            case 'multi': return resultsMulti;
+            case 'lowRisk': return resultsLowRisk;
             default: return [];
         }
     }
@@ -601,12 +672,34 @@ canvas { display: block; width: 100%; height: 100%; }
             const chg24Class = item.priceChange24h >= 0 ? 'val-up' : 'val-down';
             const chg24Sign = item.priceChange24h >= 0 ? '+' : '';
 
-            let badgeHtml = `<span class="badge-bull">⚡ 1H>60MA</span> <span class="badge-bull" style="background:rgba(0,240,255,0.15); color:var(--manga-cyan); border-color:var(--manga-cyan);">⚡ 15M>30/45/60MA</span>`;
+            let matchBadges = [];
+            if (item.bull15m) matchBadges.push("15M");
+            if (item.bull1h) matchBadges.push("1H");
+            if (item.bull4h) matchBadges.push("4H");
+            if (item.bull1d) matchBadges.push("1D");
+
+            let badgeHtml = '';
+            if (activeTab === 'lowRisk') {
+                badgeHtml = `<span class="badge-lowrisk">⚡ ${item.lightningType} 閃電第一根</span>`;
+            } else if (item.matchCount >= 2) {
+                badgeHtml = `<span class="badge-multi">🔥 ${item.matchCount}週期共振 (${matchBadges.join('+')})</span>`;
+            } else {
+                badgeHtml = `<span class="badge-bull">⚡ ${matchBadges.join('/')} 多頭</span>`;
+            }
+
             let distText = '';
-            if (activeTab === '15m' && item.bull15m) {
+            if (activeTab === 'lowRisk') {
+                distText = `觸發週期: <span class="val-up">${item.lightningType} 週期出現閃電突破訊號</span>`;
+            } else if (activeTab === '15m' && item.bull15m) {
                 distText = `距 15M 60MA: <span class="val-up">+${item.bull15m.ma3DistPercent.toFixed(2)}%</span>`;
             } else if (activeTab === '1h' && item.bull1h) {
                 distText = `距 1H 60MA: <span class="val-up">+${item.bull1h.ma3DistPercent.toFixed(2)}%</span>`;
+            } else if (activeTab === '4h' && item.bull4h) {
+                distText = `距 4H 60MA: <span class="val-up">+${item.bull4h.ma3DistPercent.toFixed(2)}%</span>`;
+            } else if (activeTab === '1d' && item.bull1d) {
+                distText = `距 1D 60MA: <span class="val-up">+${item.bull1d.ma3DistPercent.toFixed(2)}%</span>`;
+            } else {
+                distText = `滿足週期: <span class="val-up">${matchBadges.join(', ')}</span>`;
             }
 
             card.innerHTML = `
@@ -616,14 +709,16 @@ canvas { display: block; width: 100%; height: 100%; }
                         <span class="symbol-name">${item.symbol.replace('USDT','')}</span>
                         ${badgeHtml}
                     </div>
-                    <div class="detail-row">${distText}</div>
+                    <div class="detail-row">
+                        ${distText}
+                    </div>
                     <div class="detail-row">
                         24H 漲跌幅: <span class="${chg24Class}">${chg24Sign}${item.priceChange24h.toFixed(2)}%</span> | 24H 成交額: <span style="color:#00f0ff;">$${formatVolumeText(item.quoteVolume24h)}</span>
                     </div>
                 </div>
                 <div style="text-align:right;">
                     <div class="symbol-price">${item.price}</div>
-                    <div style="font-size:0.7rem; color:var(--manga-cyan); margin-top:4px;">點擊看 2 圖表 📈</div>
+                    <div style="font-size:0.7rem; color:var(--manga-cyan); margin-top:4px;">點擊看 4 圖表 📈</div>
                 </div>
             `;
             fragment.appendChild(card);
@@ -631,17 +726,14 @@ canvas { display: block; width: 100%; height: 100%; }
         dom.symbolList.replaceChildren(fragment);
     }
 
-    function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount) {
+    function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, periodType) {
         const closesAll = klinesRaw.map(k => parseFloat(k[4]));
         const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
         const ma5All = calculateSMA(closesAll, P0);
         const ma30All = calculateSMA(closesAll, P1);
         const ma45All = calculateSMA(closesAll, P2);
         const ma60All = calculateSMA(closesAll, P3);
-        const boll60 = calculateBollingerBands(closesAll, P_BOLL, 2);
-        
         const vm5All = calculateSMA(volumesAll, 5);
-        const vm10All = calculateSMA(volumesAll, 10);
         const vm20All = calculateSMA(volumesAll, 20);
 
         const actualShowCount = Math.min(showCount, klinesRaw.length);
@@ -652,10 +744,7 @@ canvas { display: block; width: 100%; height: 100%; }
         const showMA30 = ma30All.slice(-actualShowCount);
         const showMA45 = ma45All.slice(-actualShowCount);
         const showMA60 = ma60All.slice(-actualShowCount);
-        const showBollUpper = boll60.upper.slice(-actualShowCount);
-        const showBollLower = boll60.lower.slice(-actualShowCount);
         const showVM5 = vm5All.slice(-actualShowCount);
-        const showVM10 = vm10All.slice(-actualShowCount);
         const showVM20 = vm20All.slice(-actualShowCount);
 
         const rect = wrapper.getBoundingClientRect();
@@ -677,14 +766,10 @@ canvas { display: block; width: 100%; height: 100%; }
         const chartW = width - padding.left - padding.right;
 
         let minP = Infinity, maxP = -Infinity;
-        showK.forEach((k, i) => {
+        showK.forEach((k) => {
             const l = parseFloat(k[3]), h = parseFloat(k[2]);
             if (l < minP) minP = l;
             if (h > maxP) maxP = h;
-            const bUp = showBollUpper[i];
-            const bLow = showBollLower[i];
-            if (bUp !== null && bUp > maxP) maxP = bUp;
-            if (bLow !== null && bLow < minP) minP = bLow;
         });
 
         let maxVol = -Infinity;
@@ -706,12 +791,16 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.textAlign = 'left';
         ctx.lineWidth = 1;
 
-        const y = padding.top;
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(width - padding.right, y);
-        ctx.stroke();
-        ctx.fillText(maxP.toFixed(1), width - padding.right + 3, y + 3);
+        const gridLines = 1;
+        for (let i = 0; i <= gridLines; i++) {
+            const y = padding.top + (priceH / gridLines) * i;
+            const pVal = maxP - (priceRange / gridLines) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+            ctx.fillText(pVal.toFixed(1), width - padding.right + 3, y + 3);
+        }
 
         ctx.beginPath();
         ctx.moveTo(padding.left, volTop);
@@ -726,6 +815,7 @@ canvas { display: block; width: 100%; height: 100%; }
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
+            
             const utcDay = date.getUTCDay();
             const utcHour = date.getUTCHours();
             const utcMin = date.getUTCMinutes();
@@ -733,22 +823,51 @@ canvas { display: block; width: 100%; height: 100%; }
             const isMondayStart = (utcDay === 1 && utcHour === 0);
             const isDailyStart = (utcHour === 0 && utcMin === 0);
 
-            if (isMondayStart || isDailyStart) {
-                ctx.strokeStyle = isMondayStart ? 'rgba(157, 78, 221, 0.75)' : 'rgba(0, 240, 255, 0.45)';
-                ctx.lineWidth = isMondayStart ? 1.5 : 1.2;
-                ctx.setLineDash([3, 3]);
-                const x = padding.left + i * barWidth + barWidth / 2;
-                ctx.beginPath();
-                ctx.moveTo(x, padding.top);
-                ctx.lineTo(x, padding.top + totalH);
-                ctx.stroke();
+            if (periodType === '1d') {
+                if (isMondayStart) {
+                    ctx.strokeStyle = 'rgba(157, 78, 221, 0.9)';
+                    ctx.lineWidth = 1.6;
+                    ctx.setLineDash([3, 3]);
+                    const x = padding.left + i * barWidth + barWidth / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding.top);
+                    ctx.lineTo(x, padding.top + totalH);
+                    ctx.stroke();
+                }
+            } else {
+                if (isMondayStart) {
+                    ctx.strokeStyle = 'rgba(157, 78, 221, 0.75)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([3, 3]);
+                    const x = padding.left + i * barWidth + barWidth / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding.top);
+                    ctx.lineTo(x, padding.top + totalH);
+                    ctx.stroke();
 
-                ctx.save();
-                ctx.font = isMondayStart ? 'bold 8px JetBrains Mono' : '7px JetBrains Mono';
-                ctx.fillStyle = isMondayStart ? '#9d4edd' : '#00f0ff';
-                ctx.textAlign = 'center';
-                ctx.fillText(isMondayStart ? '週一' : `週${dayNames[utcDay]}`, x, padding.top - 5);
-                ctx.restore();
+                    ctx.save();
+                    ctx.font = 'bold 8px JetBrains Mono';
+                    ctx.fillStyle = '#9d4edd';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('週一', x, padding.top - 5);
+                    ctx.restore();
+                } else if (isDailyStart) {
+                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+                    ctx.lineWidth = 1.2;
+                    ctx.setLineDash([3, 3]);
+                    const x = padding.left + i * barWidth + barWidth / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding.top);
+                    ctx.lineTo(x, padding.top + totalH);
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.font = '7px JetBrains Mono';
+                    ctx.fillStyle = '#00f0ff';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 5);
+                    ctx.restore();
+                }
             }
         });
 
@@ -763,28 +882,30 @@ canvas { display: block; width: 100%; height: 100%; }
             }
             ctx.strokeStyle = color;
             ctx.lineWidth = width;
-            ctx.setLineDash(isDashed ? [3, 2] : []);
+            if (isDashed) ctx.setLineDash([3, 2]);
+            else ctx.setLineDash([]);
             ctx.beginPath();
             let started = false;
             dataArray.forEach((val, i) => {
                 if (val === null) return;
                 const x = padding.left + i * barWidth + barWidth / 2;
                 const y = getYFunc(val);
-                if (!started) { ctx.moveTo(x, y); started = true; }
-                else { ctx.lineTo(x, y); }
+                if (!started) {
+                    ctx.moveTo(x, y);
+                    started = true;
+                } else {
+                    ctx.lineTo(x, y);
+                }
             });
             ctx.stroke();
             ctx.restore();
         };
 
-        drawLine(showBollUpper, '#ff007f', getYPrice, 1.6, false, '#ff007f', 6);
-        drawLine(showBollLower, '#ff007f', getYPrice, 1.6, false, '#ff007f', 6);
         drawLine(showMA5, '#00ff66', getYPrice);
         drawLine(showMA30, '#ffea00', getYPrice);
         drawLine(showMA45, '#ff9100', getYPrice);
         drawLine(showMA60, '#ff007f', getYPrice);
         drawLine(showVM5, '#00f0ff', getYVol, 0.9);
-        drawLine(showVM10, '#ff9100', getYVol, 0.9);
         drawLine(showVM20, '#9d4edd', getYVol, 0.9);
 
         showK.forEach((k, i) => {
@@ -811,17 +932,86 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.4)' : 'rgba(255, 42, 109, 0.4)';
             const vY = getYVol(vol);
             ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
+
+            const vm5Val = vm5All[absoluteIdx];
+            const vm20Val = vm20All[absoluteIdx];
+            const vm5Prev = vm5All[absoluteIdx - 1];
+            const vm20Prev = vm20All[absoluteIdx - 1];
+
+            const isVolWarmingNow = (vm5Val !== null && vm20Val !== null && vm5Val > vm20Val);
+            const isVolWarmingPrev = (vm5Prev !== null && vm20Prev !== null && vm5Prev > vm20Prev);
+            const isFirstBarVolWarming = isVolWarmingNow && !isVolWarmingPrev;
+
+            if (isFirstBarVolWarming) {
+                ctx.save();
+                ctx.font = 'bold 9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = '#00f0ff';
+                ctx.shadowColor = '#00f0ff';
+                ctx.shadowBlur = 6;
+                ctx.fillText('🔥', x, volTop - 11);
+                ctx.restore();
+            }
+
+            const checkAboveMAs5_30_45_60 = (closes, ma5, ma30, ma45, ma60, idx) => {
+                if (idx < 0 || idx >= closes.length) return false;
+                const price = closes[idx];
+                return (ma5[idx] !== null && price >= ma5[idx]) &&
+                       (ma30[idx] !== null && price >= ma30[idx]) &&
+                       (ma45[idx] !== null && price >= ma45[idx]) &&
+                       (ma60[idx] !== null && price >= ma60[idx]);
+            };
+
+            const checkAboveMAs30_45_60 = (closes, ma30, ma45, ma60, idx) => {
+                if (idx < 0 || idx >= closes.length) return false;
+                const price = closes[idx];
+                return (ma30[idx] !== null && price >= ma30[idx]) &&
+                       (ma45[idx] !== null && price >= ma45[idx]) &&
+                       (ma60[idx] !== null && price >= ma60[idx]);
+            };
+
+            let isNowAbove = false;
+            let isPrevAbove = false;
+            if (periodType === '4h' || periodType === '1d') {
+                isNowAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
+                isPrevAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
+            } else {
+                isNowAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx);
+                isPrevAbove = checkAboveMAs30_45_60(closesAll, ma30All, ma45All, ma60All, absoluteIdx - 1);
+            }
+
+            if (isNowAbove && !isPrevAbove) {
+                ctx.save();
+                ctx.font = 'bold 10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillStyle = '#ffea00';
+                ctx.shadowColor = '#ffea00';
+                ctx.shadowBlur = 5;
+                const highY = getYPrice(high);
+                ctx.fillText('⚡', x, highY - 2);
+                ctx.restore();
+            }
         });
     }
 
     function loadAndDrawCharts(symbol) {
-        dom.tagText15m.innerText = `15M (${COUNT_15M})`;
-        dom.tagText1h.innerText = `1H (${COUNT_1H})`;
+        updatePanelTags();
         const cached = klinesCache.get(symbol);
         if (cached) {
-            renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cached.k15m, COUNT_15M);
-            renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H);
+            renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cached.k15m, COUNT_15M, '15m');
+            renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H, '1h');
+            renderCanvasChart(dom.canvas4h, dom.wrapper4h, ctx4h, cached.k4h, COUNT_4H, '4h');
+            renderCanvasChart(dom.canvas1d, dom.wrapper1d, ctx1d, cached.k1d, COUNT_1D, '1d');
         }
+    }
+
+    function updatePanelTags() {
+        dom.tagText15m.innerText = `15M (${COUNT_15M})`;
+        dom.tagText1h.innerText = `1H (${COUNT_1H})`;
+        dom.tagText4h.innerText = `4H (${COUNT_4H})`;
+        dom.tagText1d.innerText = `1D (${COUNT_1D})`;
     }
 
     function openChartModal(index) {
@@ -856,33 +1046,50 @@ canvas { display: block; width: 100%; height: 100%; }
     }
 
     let touchStartX = 0, touchStartY = 0;
+    let touchEndX = 0, touchEndY = 0;
+
     dom.chartModal.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
     }, { passive: true });
 
     dom.chartModal.addEventListener('touchend', (e) => {
-        const deltaX = e.changedTouches[0].screenX - touchStartX;
-        const deltaY = e.changedTouches[0].screenY - touchStartY;
-        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
-            navigateSymbol(deltaX < 0 ? 1 : -1);
-        }
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        handleSwipe();
     }, { passive: true });
+
+    function handleSwipe() {
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
+            if (deltaX < 0) navigateSymbol(1);
+            else navigateSymbol(-1);
+        }
+    }
 
     function switchTab(tabKey, targetBtn) {
         activeTab = tabKey;
-        [dom.tab15m, dom.tab1h].forEach(b => b.classList.remove('active'));
+        [dom.tab15m, dom.tab1h, dom.tab4h, dom.tab1d, dom.tabMulti, dom.tabLowRisk].forEach(b => b.classList.remove('active'));
         targetBtn.classList.add('active');
         renderList();
     }
 
     dom.tab15m.addEventListener('click', () => switchTab('15m', dom.tab15m));
     dom.tab1h.addEventListener('click', () => switchTab('1h', dom.tab1h));
+    dom.tab4h.addEventListener('click', () => switchTab('4h', dom.tab4h));
+    dom.tab1d.addEventListener('click', () => switchTab('1d', dom.tab1d));
+    dom.tabMulti.addEventListener('click', () => switchTab('multi', dom.tabMulti));
+    dom.tabLowRisk.addEventListener('click', () => switchTab('lowRisk', dom.tabLowRisk));
+
     dom.scanBtn.addEventListener('click', startScan);
     dom.closeModalBtn.addEventListener('click', closeChartModal);
     dom.prevBtn.addEventListener('click', (e) => { e.stopPropagation(); navigateSymbol(-1); });
     dom.nextBtn.addEventListener('click', (e) => { e.stopPropagation(); navigateSymbol(1); });
-    dom.chartModal.addEventListener('click', (e) => { if (e.target === dom.chartModal) closeChartModal(); });
+
+    dom.chartModal.addEventListener('click', (e) => {
+        if (e.target === dom.chartModal) closeChartModal();
+    });
 
     window.addEventListener('keydown', (e) => {
         if (!dom.chartModal.classList.contains('active')) return;
@@ -897,7 +1104,9 @@ canvas { display: block; width: 100%; height: 100%; }
         resizeRaf = requestAnimationFrame(() => {
             if (dom.chartModal.classList.contains('active') && currentIndex !== -1) {
                 const currentList = getCurrentList();
-                if (currentList[currentIndex]) loadAndDrawCharts(currentList[currentIndex].symbol);
+                if (currentList[currentIndex]) {
+                    loadAndDrawCharts(currentList[currentIndex].symbol);
+                }
             }
         });
     });
