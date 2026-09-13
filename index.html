@@ -389,17 +389,32 @@ canvas { display: block; width: 100%; height: 100%; }
         }
         return ma;
     }
-    function isBullishAlignment(klinesRaw) {
+    
+    function checkBullishAlignment(klinesRaw) {
         const totalLen = klinesRaw.length;
         if (totalLen < 60) return null;
         const closes = klinesRaw.map(k => parseFloat(k[4]));
         const price = closes[totalLen - 1];
-        const ma3Arr = calculateSMA(closes, 60);
-        const ma3 = ma3Arr[totalLen - 1];
-        if (ma3 !== null && price >= ma3) {
-            const ma3DistPercent = ((price - ma3) / ma3) * 100;
-            const isAboveAllNow = (ma3 !== null && price >= ma3);
-            const isAboveAllPrev = (ma3Arr[totalLen - 2] !== null && closes[totalLen - 2] >= ma3Arr[totalLen - 2]);
+        
+        const ma30Arr = calculateSMA(closes, 30);
+        const ma45Arr = calculateSMA(closes, 45);
+        const ma60Arr = calculateSMA(closes, 60);
+        
+        const ma30 = ma30Arr[totalLen - 1];
+        const ma45 = ma45Arr[totalLen - 1];
+        const ma60 = ma60Arr[totalLen - 1];
+
+        if (ma30 !== null && ma45 !== null && ma60 !== null && price >= ma30 && price >= ma45 && price >= ma60) {
+            const ma3DistPercent = ((price - ma60) / ma60) * 100;
+            const isAboveAllNow = true;
+            const isAboveAllPrev = (
+                ma30Arr[totalLen - 2] !== null && 
+                ma45Arr[totalLen - 2] !== null && 
+                ma60Arr[totalLen - 2] !== null && 
+                closes[totalLen - 2] >= ma30Arr[totalLen - 2] && 
+                closes[totalLen - 2] >= ma45Arr[totalLen - 2] && 
+                closes[totalLen - 2] >= ma60Arr[totalLen - 2]
+            );
             const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
             return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
         }
@@ -447,17 +462,17 @@ canvas { display: block; width: 100%; height: 100%; }
                 fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`)
             ]);
 
-            const bull1h = isBullishAlignment(klines1h);
+            const bull1h = checkBullishAlignment(klines1h);
             if (!bull1h) return null;
 
-            const bull15m = isBullishAlignment(klines15m);
+            const bull15m = checkBullishAlignment(klines15m);
             const volBull15m = isVolumeBullishAlignment(klines15m);
 
-            // 必須同時滿足 15M 均量排列 (5vm > 10vm > 20vm)
-            if (!volBull15m) return null;
+            // 必須同時滿足 15M 價格大於 30MA、45MA、60MA，且 15M 均量排列 (5vm > 10vm > 20vm)
+            if (!bull15m || !volBull15m) return null;
 
             return {
-                symbol, bull15m: bull15m ? bull15m : null, bull1h,
+                symbol, bull15m, bull1h,
                 currentPrice: bull1h.price,
                 rawKlines: { k15m: klines15m, k1h: klines1h }
             };
@@ -582,7 +597,7 @@ canvas { display: block; width: 100%; height: 100%; }
             const chg24Class = item.priceChange24h >= 0 ? 'val-up' : 'val-down';
             const chg24Sign = item.priceChange24h >= 0 ? '+' : '';
 
-            let badgeHtml = `<span class="badge-bull">⚡ 1H>60MA</span> <span class="badge-bull" style="background:rgba(0,240,255,0.15); color:var(--manga-cyan); border-color:var(--manga-cyan);">⚡ 15M 5VM>10VM>20VM</span>`;
+            let badgeHtml = `<span class="badge-bull">⚡ 1H>60MA</span> <span class="badge-bull" style="background:rgba(0,240,255,0.15); color:var(--manga-cyan); border-color:var(--manga-cyan);">⚡ 15M>30/45/60MA</span>`;
 
             let distText = '';
             if (activeTab === '15m' && item.bull15m) {
