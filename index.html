@@ -267,6 +267,7 @@ canvas { display: block; width: 100%; height: 100%; }
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60布林軌</div>
                 <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>5VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>10VM</div>
                 <div class="legend-item"><div class="legend-color" style="background:#9d4edd"></div>20VM</div>
             </div>
             <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
@@ -604,7 +605,10 @@ canvas { display: block; width: 100%; height: 100%; }
         const ma45All = calculateSMA(closesAll, P2);
         const ma60All = calculateSMA(closesAll, P3);
         const boll60 = calculateBollingerBands(closesAll, P_BOLL, 2);
+        
+        // 均量線 5VM, 10VM, 20VM
         const vm5All = calculateSMA(volumesAll, 5);
+        const vm10All = calculateSMA(volumesAll, 10);
         const vm20All = calculateSMA(volumesAll, 20);
 
         const actualShowCount = Math.min(showCount, klinesRaw.length);
@@ -618,6 +622,7 @@ canvas { display: block; width: 100%; height: 100%; }
         const showBollUpper = boll60.upper.slice(-actualShowCount);
         const showBollLower = boll60.lower.slice(-actualShowCount);
         const showVM5 = vm5All.slice(-actualShowCount);
+        const showVM10 = vm10All.slice(-actualShowCount);
         const showVM20 = vm20All.slice(-actualShowCount);
 
         const rect = wrapper.getBoundingClientRect();
@@ -772,7 +777,10 @@ canvas { display: block; width: 100%; height: 100%; }
         drawLine(showMA30, '#ffea00', getYPrice);
         drawLine(showMA45, '#ff9100', getYPrice);
         drawLine(showMA60, '#ff007f', getYPrice);
+
+        // 渲染均量線：5VM (青色)、10VM (橘色)、20VM (紫色)
         drawLine(showVM5, '#00f0ff', getYVol, 0.9);
+        drawLine(showVM10, '#ff9100', getYVol, 0.9);
         drawLine(showVM20, '#9d4edd', getYVol, 0.9);
 
         showK.forEach((k, i) => {
