@@ -430,7 +430,6 @@ canvas { display: block; width: 100%; height: 100%; }
                 fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`)
             ]);
 
-            // 強制要求：一小時 K 線必須大於 60MA (bull1h 必須存在)
             const bull1h = isBullishAlignment(klines1h);
             if (!bull1h) return null;
 
@@ -521,9 +520,8 @@ canvas { display: block; width: 100%; height: 100%; }
                     };
                 });
 
-                // 因為所有通過篩選的標的都已具備 1H 條件，此處直接對 1H 與 15M 分類
                 results15M = allMatches.filter(m => m.bull15m);
-                results1H = allMatches; // 所有通過者皆符合 1H 大於 60MA
+                results1H = allMatches;
 
                 const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
                 results15M.sort(sortByChange);
