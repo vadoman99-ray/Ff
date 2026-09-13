@@ -303,8 +303,8 @@ canvas { display: block; width: 100%; height: 100%; }
 (() => {
     const API_BASE = 'https://fapi.binance.com';
     const P0 = 5, P1 = 30, P2 = 45, P3 = 60, P_BOLL = 60;
-    const COUNT_15M = 150;
-    const COUNT_1H = 80;
+    const COUNT_15M = 100;
+    const COUNT_1H = 60;
     const MAX_VM_PERIOD = 20;
 
     const FETCH_LIMIT_15M = COUNT_15M + Math.max(P3, P_BOLL, MAX_VM_PERIOD);
