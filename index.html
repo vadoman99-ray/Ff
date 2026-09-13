@@ -511,20 +511,22 @@ canvas { display: block; width: 100%; height: 100%; }
             if (bull4hReal) matchCount++;
             if (bull1dReal) matchCount++;
 
+            const lightning15m = checkIsFirstBarLightning(klines15m, false);
             const lightning1h = checkIsFirstBarLightning(klines1h, false);
             const lightning4h = checkIsFirstBarLightning(klines4h, true);
             const lightning1d = checkIsFirstBarLightning(klines1d, true);
 
-            const isLightningMatch = lightning1h || lightning4h || lightning1d;
+            const isLightningMatch = lightning15m || lightning1h || lightning4h || lightning1d;
 
-            let lightningType = '';
-            if (lightning1d) lightningType = '1D';
-            else if (lightning4h) lightningType = '4H';
-            else if (lightning1h) lightningType = '1H';
+            let lightningTypes = [];
+            if (lightning15m) lightningTypes.push('15M');
+            if (lightning1h) lightningTypes.push('1H');
+            if (lightning4h) lightningTypes.push('4H');
+            if (lightning1d) lightningTypes.push('1D');
 
             return {
                 symbol, bull15m, bull1h, bull4h: bull4hReal, bull1d: bull1dReal, matchCount,
-                isLightningMatch, lightningType,
+                isLightningMatch, lightningTypes,
                 currentPrice: (bull15m || bull1h || bull4hReal || bull1dReal).price,
                 rawKlines: { k15m: klines15m, k1h: klines1h, k4h: klines4h, k1d: klines1d }
             };
@@ -607,7 +609,7 @@ canvas { display: block; width: 100%; height: 100%; }
                         bull1d: m.bull1d,
                         matchCount: m.matchCount,
                         isLightningMatch: m.isLightningMatch,
-                        lightningType: m.lightningType,
+                        lightningTypes: m.lightningTypes,
                         priceChange24h: ticker ? parseFloat(ticker.priceChangePercent) : 0,
                         quoteVolume24h: ticker ? parseFloat(ticker.quoteVolume) : 0
                     };
@@ -680,7 +682,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
             let badgeHtml = '';
             if (activeTab === 'lowRisk') {
-                badgeHtml = `<span class="badge-lowrisk">⚡ ${item.lightningType} 閃電第一根</span>`;
+                badgeHtml = `<span class="badge-lowrisk">⚡ ${item.lightningTypes.join('+')} 閃電第一根</span>`;
             } else if (item.matchCount >= 2) {
                 badgeHtml = `<span class="badge-multi">🔥 ${item.matchCount}週期共振 (${matchBadges.join('+')})</span>`;
             } else {
@@ -689,7 +691,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
             let distText = '';
             if (activeTab === 'lowRisk') {
-                distText = `觸發週期: <span class="val-up">${item.lightningType} 週期出現閃電突破訊號</span>`;
+                distText = `觸發週期: <span class="val-up">${item.lightningTypes.join('、')} 週期出現閃電突破訊號</span>`;
             } else if (activeTab === '15m' && item.bull15m) {
                 distText = `距 15M 60MA: <span class="val-up">+${item.bull15m.ma3DistPercent.toFixed(2)}%</span>`;
             } else if (activeTab === '1h' && item.bull1h) {
