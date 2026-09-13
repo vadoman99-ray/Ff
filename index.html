@@ -242,7 +242,7 @@ canvas { display: block; width: 100%; height: 100%; }
 <div class="dashboard">
     <div class="stat-card">
         <div class="val" id="statTotal" style="color:var(--manga-cyan)">0</div>
-        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數</div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數（>=1000萬）</div>
     </div>
     <div class="stat-card entry">
         <div class="val" id="statEntry">0</div>
@@ -288,6 +288,7 @@ canvas { display: block; width: 100%; height: 100%; }
 <script>
 (() => {
     const API_BASE = 'https://fapi.binance.com';
+    const MIN_QUOTE_VOLUME = 10000000; // 成交額門檻：1,000萬 USDT
     const P0 = 5, P1 = 30, P2 = 45, P3 = 60, P_BOLL = 60;
     const COUNT_15M = 60;
     const COUNT_1H = 30;
@@ -482,7 +483,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
     self.onmessage = async function(e) {
         const { symbols, apiBase, limits } = e.data;
-        const concurrency = 24; // 提升併發數至 24，達到網路極速並行
+        const concurrency = 24;
         let completed = 0;
         const matches = [];
 
@@ -492,7 +493,7 @@ canvas { display: block; width: 100%; height: 100%; }
             chunkResults.filter(Boolean).forEach(res => matches.push(res));
             completed += chunk.length;
             self.postMessage({ type: 'progress', completed, total: symbols.length });
-            await new Promise(r => setTimeout(r, 4)); // 極短微調間隔
+            await new Promise(r => setTimeout(r, 4));
         }
         self.postMessage({ type: 'done', matches });
     };
@@ -519,7 +520,14 @@ canvas { display: block; width: 100%; height: 100%; }
             return;
         }
 
-        const candidateSymbols = Array.from(tickerMap.keys()).filter(sym => sym.endsWith('USDT'));
+        // 過濾結尾為 USDT 且 24H 成交額大於等於 1,000 萬 USDT 的標的
+        const candidateSymbols = Array.from(tickerMap.keys()).filter(sym => {
+            if (!sym.endsWith('USDT')) return false;
+            const ticker = tickerMap.get(sym);
+            const quoteVol = ticker ? parseFloat(ticker.quoteVolume) : 0;
+            return quoteVol >= MIN_QUOTE_VOLUME;
+        });
+
         dom.statTotal.innerText = candidateSymbols.length;
 
         const blob = new Blob([workerCode], { type: 'application/javascript' });
