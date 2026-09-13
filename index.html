@@ -437,7 +437,7 @@ canvas { display: block; width: 100%; height: 100%; }
         return v5 > v10 && v10 > v20;
     }
 
-    async function fetchWithRetry(url, retries = 2, delay = 200) {
+    async function fetchWithRetry(url, retries = 2, delay = 100) {
         for (let i = 0; i < retries; i++) {
             try {
                 const res = await fetch(url);
@@ -482,7 +482,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
     self.onmessage = async function(e) {
         const { symbols, apiBase, limits } = e.data;
-        const concurrency = 16; // 提升併發數至 16，加快網路並行請求
+        const concurrency = 24; // 提升併發數至 24，達到網路極速並行
         let completed = 0;
         const matches = [];
 
@@ -492,7 +492,7 @@ canvas { display: block; width: 100%; height: 100%; }
             chunkResults.filter(Boolean).forEach(res => matches.push(res));
             completed += chunk.length;
             self.postMessage({ type: 'progress', completed, total: symbols.length });
-            await new Promise(r => setTimeout(r, 10)); // 縮短批次間隔
+            await new Promise(r => setTimeout(r, 4)); // 極短微調間隔
         }
         self.postMessage({ type: 'done', matches });
     };
@@ -519,10 +519,7 @@ canvas { display: block; width: 100%; height: 100%; }
             return;
         }
 
-        const candidateSymbols = Array.from(tickerMap.keys()).filter(sym => {
-            return sym.endsWith('USDT');
-        });
-
+        const candidateSymbols = Array.from(tickerMap.keys()).filter(sym => sym.endsWith('USDT'));
         dom.statTotal.innerText = candidateSymbols.length;
 
         const blob = new Blob([workerCode], { type: 'application/javascript' });
@@ -597,7 +594,6 @@ canvas { display: block; width: 100%; height: 100%; }
             const chg24Sign = item.priceChange24h >= 0 ? '+' : '';
 
             let badgeHtml = `<span class="badge-bull">⚡ 1H>60MA</span> <span class="badge-bull" style="background:rgba(0,240,255,0.15); color:var(--manga-cyan); border-color:var(--manga-cyan);">⚡ 15M>30/45/60MA</span>`;
-
             let distText = '';
             if (activeTab === '15m' && item.bull15m) {
                 distText = `距 15M 60MA: <span class="val-up">+${item.bull15m.ma3DistPercent.toFixed(2)}%</span>`;
@@ -612,9 +608,7 @@ canvas { display: block; width: 100%; height: 100%; }
                         <span class="symbol-name">${item.symbol.replace('USDT','')}</span>
                         ${badgeHtml}
                     </div>
-                    <div class="detail-row">
-                        ${distText}
-                    </div>
+                    <div class="detail-row">${distText}</div>
                     <div class="detail-row">
                         24H 漲跌幅: <span class="${chg24Class}">${chg24Sign}${item.priceChange24h.toFixed(2)}%</span> | 24H 成交額: <span style="color:#00f0ff;">$${formatVolumeText(item.quoteVolume24h)}</span>
                     </div>
@@ -629,7 +623,7 @@ canvas { display: block; width: 100%; height: 100%; }
         dom.symbolList.replaceChildren(fragment);
     }
 
-    function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, periodType) {
+    function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount) {
         const closesAll = klinesRaw.map(k => parseFloat(k[4]));
         const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
         const ma5All = calculateSMA(closesAll, P0);
@@ -704,16 +698,12 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.textAlign = 'left';
         ctx.lineWidth = 1;
 
-        const gridLines = 1;
-        for (let i = 0; i <= gridLines; i++) {
-            const y = padding.top + (priceH / gridLines) * i;
-            const pVal = maxP - (priceRange / gridLines) * i;
-            ctx.beginPath();
-            ctx.moveTo(padding.left, y);
-            ctx.lineTo(width - padding.right, y);
-            ctx.stroke();
-            ctx.fillText(pVal.toFixed(1), width - padding.right + 3, y + 3);
-        }
+        const y = padding.top;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(width - padding.right, y);
+        ctx.stroke();
+        ctx.fillText(maxP.toFixed(1), width - padding.right + 3, y + 3);
 
         ctx.beginPath();
         ctx.moveTo(padding.left, volTop);
@@ -728,7 +718,6 @@ canvas { display: block; width: 100%; height: 100%; }
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
-            
             const utcDay = date.getUTCDay();
             const utcHour = date.getUTCHours();
             const utcMin = date.getUTCMinutes();
@@ -736,9 +725,9 @@ canvas { display: block; width: 100%; height: 100%; }
             const isMondayStart = (utcDay === 1 && utcHour === 0);
             const isDailyStart = (utcHour === 0 && utcMin === 0);
 
-            if (isMondayStart) {
-                ctx.strokeStyle = 'rgba(157, 78, 221, 0.75)';
-                ctx.lineWidth = 1.5;
+            if (isMondayStart || isDailyStart) {
+                ctx.strokeStyle = isMondayStart ? 'rgba(157, 78, 221, 0.75)' : 'rgba(0, 240, 255, 0.45)';
+                ctx.lineWidth = isMondayStart ? 1.5 : 1.2;
                 ctx.setLineDash([3, 3]);
                 const x = padding.left + i * barWidth + barWidth / 2;
                 ctx.beginPath();
@@ -747,26 +736,10 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.stroke();
 
                 ctx.save();
-                ctx.font = 'bold 8px JetBrains Mono';
-                ctx.fillStyle = '#9d4edd';
+                ctx.font = isMondayStart ? 'bold 8px JetBrains Mono' : '7px JetBrains Mono';
+                ctx.fillStyle = isMondayStart ? '#9d4edd' : '#00f0ff';
                 ctx.textAlign = 'center';
-                ctx.fillText('週一', x, padding.top - 5);
-                ctx.restore();
-            } else if (isDailyStart) {
-                ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
-                ctx.lineWidth = 1.2;
-                ctx.setLineDash([3, 3]);
-                const x = padding.left + i * barWidth + barWidth / 2;
-                ctx.beginPath();
-                ctx.moveTo(x, padding.top);
-                ctx.lineTo(x, padding.top + totalH);
-                ctx.stroke();
-
-                ctx.save();
-                ctx.font = '7px JetBrains Mono';
-                ctx.fillStyle = '#00f0ff';
-                ctx.textAlign = 'center';
-                ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 5);
+                ctx.fillText(isMondayStart ? '週一' : `週${dayNames[utcDay]}`, x, padding.top - 5);
                 ctx.restore();
             }
         });
@@ -782,20 +755,15 @@ canvas { display: block; width: 100%; height: 100%; }
             }
             ctx.strokeStyle = color;
             ctx.lineWidth = width;
-            if (isDashed) ctx.setLineDash([3, 2]);
-            else ctx.setLineDash([]);
+            ctx.setLineDash(isDashed ? [3, 2] : []);
             ctx.beginPath();
             let started = false;
             dataArray.forEach((val, i) => {
                 if (val === null) return;
                 const x = padding.left + i * barWidth + barWidth / 2;
                 const y = getYFunc(val);
-                if (!started) {
-                    ctx.moveTo(x, y);
-                    started = true;
-                } else {
-                    ctx.lineTo(x, y);
-                }
+                if (!started) { ctx.moveTo(x, y); started = true; }
+                else { ctx.lineTo(x, y); }
             });
             ctx.stroke();
             ctx.restore();
@@ -803,12 +771,10 @@ canvas { display: block; width: 100%; height: 100%; }
 
         drawLine(showBollUpper, '#ff007f', getYPrice, 1.6, false, '#ff007f', 6);
         drawLine(showBollLower, '#ff007f', getYPrice, 1.6, false, '#ff007f', 6);
-
         drawLine(showMA5, '#00ff66', getYPrice);
         drawLine(showMA30, '#ffea00', getYPrice);
         drawLine(showMA45, '#ff9100', getYPrice);
         drawLine(showMA60, '#ff007f', getYPrice);
-
         drawLine(showVM5, '#00f0ff', getYVol, 0.9);
         drawLine(showVM10, '#ff9100', getYVol, 0.9);
         drawLine(showVM20, '#9d4edd', getYVol, 0.9);
@@ -837,58 +803,17 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.4)' : 'rgba(255, 42, 109, 0.4)';
             const vY = getYVol(vol);
             ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
-
-            const vm5Val = vm5All[absoluteIdx];
-            const vm20Val = vm20All[absoluteIdx];
-            const vm5Prev = vm5All[absoluteIdx - 1];
-            const vm20Prev = vm20All[absoluteIdx - 1];
-
-            const isVolWarmingNow = (vm5Val !== null && vm20Val !== null && vm5Val > vm20Val);
-            const isVolWarmingPrev = (vm5Prev !== null && vm20Prev !== null && vm5Prev > vm20Prev);
-            const isFirstBarVolWarming = isVolWarmingNow && !isVolWarmingPrev;
-
-            if (isFirstBarVolWarming) {
-                ctx.save();
-                ctx.font = 'bold 9px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.fillStyle = '#00f0ff';
-                ctx.shadowColor = '#00f0ff';
-                ctx.shadowBlur = 6;
-                ctx.fillText('🔥', x, volTop - 11);
-                ctx.restore();
-            }
-
-            const isNowAbove = (ma60All[absoluteIdx] !== null && close >= ma60All[absoluteIdx]);
-            const isPrevAbove = (ma60All[absoluteIdx - 1] !== null && parseFloat(showK[i-1]?.[4] || k[4]) >= ma60All[absoluteIdx - 1]);
-
-            if (isNowAbove && !isPrevAbove) {
-                ctx.save();
-                ctx.font = 'bold 10px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                ctx.fillStyle = '#ffea00';
-                ctx.shadowColor = '#ffea00';
-                ctx.shadowBlur = 5;
-                const highY = getYPrice(high);
-                ctx.fillText('⚡', x, highY - 2);
-                ctx.restore();
-            }
         });
     }
 
     function loadAndDrawCharts(symbol) {
-        updatePanelTags();
-        const cached = klinesCache.get(symbol);
-        if (cached) {
-            renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cached.k15m, COUNT_15M, '15m');
-            renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H, '1h');
-        }
-    }
-
-    function updatePanelTags() {
         dom.tagText15m.innerText = `15M (${COUNT_15M})`;
         dom.tagText1h.innerText = `1H (${COUNT_1H})`;
+        const cached = klinesCache.get(symbol);
+        if (cached) {
+            renderCanvasChart(dom.canvas15m, dom.wrapper15m, ctx15m, cached.k15m, COUNT_15M);
+            renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H);
+        }
     }
 
     function openChartModal(index) {
@@ -923,27 +848,18 @@ canvas { display: block; width: 100%; height: 100%; }
     }
 
     let touchStartX = 0, touchStartY = 0;
-    let touchEndX = 0, touchEndY = 0;
-
     dom.chartModal.addEventListener('touchstart', (e) => {
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
     }, { passive: true });
 
     dom.chartModal.addEventListener('touchend', (e) => {
-        touchEndX = e.changedTouches[0].screenX;
-        touchEndY = e.changedTouches[0].screenY;
-        handleSwipe();
-    }, { passive: true });
-
-    function handleSwipe() {
-        const deltaX = touchEndX - touchStartX;
-        const deltaY = touchEndY - touchStartY;
+        const deltaX = e.changedTouches[0].screenX - touchStartX;
+        const deltaY = e.changedTouches[0].screenY - touchStartY;
         if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
-            if (deltaX < 0) navigateSymbol(1);
-            else navigateSymbol(-1);
+            navigateSymbol(deltaX < 0 ? 1 : -1);
         }
-    }
+    }, { passive: true });
 
     function switchTab(tabKey, targetBtn) {
         activeTab = tabKey;
@@ -954,15 +870,11 @@ canvas { display: block; width: 100%; height: 100%; }
 
     dom.tab15m.addEventListener('click', () => switchTab('15m', dom.tab15m));
     dom.tab1h.addEventListener('click', () => switchTab('1h', dom.tab1h));
-
     dom.scanBtn.addEventListener('click', startScan);
     dom.closeModalBtn.addEventListener('click', closeChartModal);
     dom.prevBtn.addEventListener('click', (e) => { e.stopPropagation(); navigateSymbol(-1); });
     dom.nextBtn.addEventListener('click', (e) => { e.stopPropagation(); navigateSymbol(1); });
-
-    dom.chartModal.addEventListener('click', (e) => {
-        if (e.target === dom.chartModal) closeChartModal();
-    });
+    dom.chartModal.addEventListener('click', (e) => { if (e.target === dom.chartModal) closeChartModal(); });
 
     window.addEventListener('keydown', (e) => {
         if (!dom.chartModal.classList.contains('active')) return;
@@ -977,9 +889,7 @@ canvas { display: block; width: 100%; height: 100%; }
         resizeRaf = requestAnimationFrame(() => {
             if (dom.chartModal.classList.contains('active') && currentIndex !== -1) {
                 const currentList = getCurrentList();
-                if (currentList[currentIndex]) {
-                    loadAndDrawCharts(currentList[currentIndex].symbol);
-                }
+                if (currentList[currentIndex]) loadAndDrawCharts(currentList[currentIndex].symbol);
             }
         });
     });
