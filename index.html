@@ -649,11 +649,9 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
-        // 優化畫布邊距：為右側價格刻度預留乾淨空間，並微調上下間距
-        const padding = { top: 16, bottom: 12, left: 6, right: 62 };
+        const padding = { top: 22, bottom: 12, left: 6, right: 62 };
         const totalH = height - padding.top - padding.bottom;
         
-        // 精準配置主圖與副圖 (成交量) 比例：主圖 68%，成交量 24%，間隔 8%
         const priceH = totalH * 0.66;
         const volH = totalH * 0.22;
         const volTop = padding.top + priceH + totalH * 0.12;
@@ -666,7 +664,6 @@ canvas { display: block; width: 100%; height: 100%; }
             if (h > maxP) maxP = h;
         });
 
-        // 價格上下保留 1.5% 緩衝空間，避免K棒頂到天花板或地板
         const pPadding = (maxP - minP) * 0.015;
         minP -= pPadding;
         maxP += pPadding;
@@ -676,7 +673,7 @@ canvas { display: block; width: 100%; height: 100%; }
             const v = parseFloat(k[5]);
             if (v > maxVol) maxVol = v;
         });
-        maxVol = maxVol * 1.15; // 成交量頂部預留空間
+        maxVol = maxVol * 1.15;
 
         const priceRange = maxP - minP || 1;
         const getYPrice = (p) => padding.top + priceH - ((p - minP) / priceRange) * priceH;
@@ -714,40 +711,41 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.fillText(formatVol(maxVol), width - padding.right + 4, volTop + 6);
         ctx.fillText('Vol', width - padding.right + 4, volTop + volH - 2);
 
-        const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
-
-        // 時間與週一跨度垂直虛線
+        // 明顯的週一到週日週期區隔與垂直高亮虛線
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
-            const utcDay = date.getUTCDay();
+            const utcDay = date.getUTCDay(); // 0:週日, 1:週一 ... 6:週六
             const utcHour = date.getUTCHours();
             const utcMin = date.getUTCMinutes();
 
+            // 週一 00:00 作為每週起始分界線 (高亮紫色粗虛線)
             const isMondayStart = (utcDay === 1 && utcHour === 0);
+            // 每日 00:00 分界線 (藍色細虛線)
             const isDailyStart = (utcHour === 0 && utcMin === 0);
 
+            const x = padding.left + i * barWidth + barWidth / 2;
+
             if (isMondayStart) {
-                ctx.strokeStyle = 'rgba(157, 78, 221, 0.65)';
-                ctx.lineWidth = 1.2;
-                ctx.setLineDash([2, 2]);
-                const x = padding.left + i * barWidth + barWidth / 2;
+                // 強化週一的分界線：加粗、提高不透明度
+                ctx.strokeStyle = '#9d4edd';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 3]);
                 ctx.beginPath();
                 ctx.moveTo(x, padding.top);
                 ctx.lineTo(x, padding.top + totalH);
                 ctx.stroke();
 
                 ctx.save();
-                ctx.font = 'bold 8px JetBrains Mono';
-                ctx.fillStyle = '#9d4edd';
+                ctx.font = 'bold 9px JetBrains Mono';
+                ctx.fillStyle = '#b779ff';
                 ctx.textAlign = 'center';
-                ctx.fillText('週一', x, padding.top - 4);
+                ctx.fillText('週一', x, padding.top - 6);
                 ctx.restore();
             } else if (isDailyStart && periodType !== '1d' && periodType !== '4h') {
-                ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
                 ctx.lineWidth = 1;
                 ctx.setLineDash([2, 2]);
-                const x = padding.left + i * barWidth + barWidth / 2;
                 ctx.beginPath();
                 ctx.moveTo(x, padding.top);
                 ctx.lineTo(x, padding.top + totalH);
@@ -789,14 +787,13 @@ canvas { display: block; width: 100%; height: 100%; }
         drawLine(showVM5, '#00f0ff', getYVol, 0.9);
         drawLine(showVM20, '#9d4edd', getYVol, 0.9);
 
-        // 繪製精緻 K 棒與成交量柱狀圖
+        // 繪製 K 棒與成交量柱狀圖
         showK.forEach((k, i) => {
             const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]), vol = parseFloat(k[5]);
             const x = padding.left + i * barWidth + barWidth / 2;
             const isUp = close >= open;
             const color = isUp ? '#00ff66' : '#ff2a6d';
 
-            // 影線
             ctx.strokeStyle = color;
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -804,18 +801,15 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.lineTo(x, getYPrice(low));
             ctx.stroke();
 
-            // 實體 K 棒
             const yOpen = getYPrice(open);
             const yClose = getYPrice(close);
             const bodyTop = Math.min(yOpen, yClose);
             const bodyH = Math.max(Math.abs(yOpen - yClose), 1);
             
-            // 智慧調整柱寬：空間充裕時帶有完美間距，數量多時自動緊鄰
             const bw = Math.max(barWidth * 0.75, 1);
             ctx.fillStyle = color;
             ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH);
 
-            // 成交量柱狀圖 (配合漲跌色彩帶點透明質感)
             ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.35)' : 'rgba(255, 42, 109, 0.35)';
             const vY = getYVol(vol);
             ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
