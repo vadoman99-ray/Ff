@@ -182,7 +182,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .header-title-group { display: flex; align-items: center; gap: 8px; }
 .symbol-title { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 800; color: #fff; }
 .symbol-rank-tag { font-size: 0.75rem; color: var(--manga-cyan); font-weight: 800; }
-.legend-bar { display: flex; gap: 6px; font-size: 0.65rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
+.legend-bar { display: flex; gap: 6px; font-size: 0.6rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 3px; }
 .legend-color { width: 6px; height: 6px; border-radius: 2px; }
 .close-btn {
@@ -229,7 +229,7 @@ canvas { display: block; width: 100%; height: 100%; }
     .chart-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
     .chart-header { padding: 6px 10px; }
     .symbol-title { font-size: 0.9rem; }
-    .legend-bar { font-size: 0.55rem; gap: 4px; }
+    .legend-bar { font-size: 0.5rem; gap: 3px; }
     .nav-btn { width: 32px; height: 32px; font-size: 1rem; opacity: 0.6; }
 }
 </style>
@@ -272,14 +272,14 @@ canvas { display: block; width: 100%; height: 100%; }
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>5VM</div>
-                <div class="legend-item"><div class="legend-color" style="background:#9d4edd"></div>20VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>DIF</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>DEA</div>
             </div>
             <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
         </div>
         <div class="charts-wrapper" id="chartsWrapper">
             <div class="chart-panel" id="wrapper1h" data-period="1h">
-                <span class="panel-tag" id="tagText1h">1H</span>
+                <span class="panel-tag" id="tagText1h">1H (K線+成交量+MACD)</span>
                 <canvas id="klineCanvas1h"></canvas>
             </div>
         </div>
@@ -293,7 +293,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const COUNT_1H = 80;
     const MAX_VM_PERIOD = 20;
 
-    const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, MAX_VM_PERIOD);
+    const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, MAX_VM_PERIOD, 35); // 確保足夠計算 MACD 與均線
 
     let results1H = [];
     let resultsLowRisk = [];
@@ -337,6 +337,48 @@ canvas { display: block; width: 100%; height: 100%; }
             ma[i] = sum / period;
         }
         return ma;
+    }
+
+    function calculateMACD(closes, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+        const len = closes.length;
+        const dif = new Array(len).fill(null);
+        const dea = new Array(len).fill(null);
+        const histogram = new Array(len).fill(null);
+
+        let kFast = 2 / (fastPeriod + 1);
+        let kSlow = 2 / (slowPeriod + 1);
+        let kSignal = 2 / (signalPeriod + 1);
+
+        let emaFast = null;
+        let emaSlow = null;
+        let emaSignal = null;
+
+        let validCount = 0;
+        for (let i = 0; i < len; i++) {
+            const price = closes[i];
+            if (emaFast === null) {
+                emaFast = price;
+                emaSlow = price;
+            } else {
+                emaFast = price * kFast + emaFast * (1 - kFast);
+                emaSlow = price * kSlow + emaSlow * (1 - kSlow);
+            }
+
+            if (i >= slowPeriod - 1) {
+                const d = emaFast - emaSlow;
+                dif[i] = d;
+                if (emaSignal === null) {
+                    emaSignal = d;
+                } else {
+                    emaSignal = d * kSignal + emaSignal * (1 - kSignal);
+                }
+                if (i >= slowPeriod - 1 + signalPeriod - 1) {
+                    dea[i] = emaSignal;
+                    histogram[i] = (d - emaSignal) * 2;
+                }
+            }
+        }
+        return { dif, dea, histogram };
     }
 
     function formatVolumeText(volume) {
@@ -601,8 +643,7 @@ canvas { display: block; width: 100%; height: 100%; }
         const ma30All = calculateSMA(closesAll, P1);
         const ma45All = calculateSMA(closesAll, P2);
         const ma60All = calculateSMA(closesAll, P3);
-        const vm5All = calculateSMA(volumesAll, 5);
-        const vm20All = calculateSMA(volumesAll, 20);
+        const macdAll = calculateMACD(closesAll);
 
         const actualShowCount = Math.min(showCount, klinesRaw.length);
         const showStartIndex = klinesRaw.length - actualShowCount;
@@ -612,8 +653,9 @@ canvas { display: block; width: 100%; height: 100%; }
         const showMA30 = ma30All.slice(-actualShowCount);
         const showMA45 = ma45All.slice(-actualShowCount);
         const showMA60 = ma60All.slice(-actualShowCount);
-        const showVM5 = vm5All.slice(-actualShowCount);
-        const showVM20 = vm20All.slice(-actualShowCount);
+        const showDIF = macdAll.dif.slice(-actualShowCount);
+        const showDEA = macdAll.dea.slice(-actualShowCount);
+        const showHist = macdAll.histogram.slice(-actualShowCount);
 
         const rect = wrapper.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
@@ -626,11 +668,15 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
-        const padding = { top: 22, bottom: 6, left: 6, right: 60 };
+        // 版面配置：上方主圖(50%)、中間成交量(20%)、下方MACD(20%)，預留上下邊距
+        const padding = { top: 20, bottom: 6, left: 6, right: 60 };
         const totalH = height - padding.top - padding.bottom;
-        const priceH = totalH * 0.65;
-        const volH = totalH * 0.25;
-        const volTop = padding.top + priceH + totalH * 0.10;
+        const priceH = totalH * 0.50;
+        const volH = totalH * 0.18;
+        const macdH = totalH * 0.22;
+
+        const volTop = padding.top + priceH + totalH * 0.04;
+        const macdTop = volTop + volH + totalH * 0.04;
         const chartW = width - padding.left - padding.right;
 
         let minP = Infinity, maxP = -Infinity;
@@ -646,13 +692,28 @@ canvas { display: block; width: 100%; height: 100%; }
             if (v > maxVol) maxVol = v;
         });
 
+        let maxMacdVal = 0;
+        showDIF.forEach((v, i) => {
+            if (v !== null && Math.abs(v) > maxMacdVal) maxMacdVal = Math.abs(v);
+            const deaVal = showDEA[i];
+            if (deaVal !== null && Math.abs(deaVal) > maxMacdVal) maxMacdVal = Math.abs(deaVal);
+            const histVal = showHist[i];
+            if (histVal !== null && Math.abs(histVal) > maxMacdVal) maxMacdVal = Math.abs(histVal);
+        });
+        maxMacdVal = maxMacdVal || 1;
+
         const priceRange = maxP - minP || 1;
         const getYPrice = (p) => padding.top + priceH - ((p - minP) / priceRange) * priceH;
         const getYVol = (v) => volTop + volH - (v / (maxVol || 1)) * volH;
+        
+        // MACD 座標映射（對稱正負軸）
+        const getYMacd = (v) => macdTop + macdH / 2 - (v / maxMacdVal) * (macdH / 2 * 0.85);
+
         const barWidth = chartW / actualShowCount;
 
         ctx.clearRect(0, 0, width, height);
 
+        // 網格與刻度
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.fillStyle = '#64748b';
         ctx.font = '8px JetBrains Mono';
@@ -670,20 +731,27 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.fillText(pVal.toFixed(2), width - padding.right + 3, y + 3);
         }
 
+        // 成交量頂線
         ctx.beginPath();
         ctx.moveTo(padding.left, volTop);
         ctx.lineTo(width - padding.right, volTop);
         ctx.stroke();
-
         const formatVol = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : (v / 1e3).toFixed(0) + 'K';
         ctx.fillText(formatVol(maxVol), width - padding.right + 3, volTop + 6);
+
+        // MACD 零軸
+        const zeroY = getYMacd(0);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, zeroY);
+        ctx.lineTo(width - padding.right, zeroY);
+        ctx.stroke();
+        ctx.fillText('0.00', width - padding.right + 3, zeroY + 3);
 
         const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
 
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
-            
             const utcDay = date.getUTCDay();
             const utcHour = date.getUTCHours();
             const utcMin = date.getUTCMinutes();
@@ -705,7 +773,7 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.font = 'bold 8px JetBrains Mono';
                 ctx.fillStyle = '#9d4edd';
                 ctx.textAlign = 'center';
-                ctx.fillText('週一', x, padding.top - 6);
+                ctx.fillText('週一', x, padding.top - 5);
                 ctx.restore();
             } else if (isDailyStart) {
                 ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
@@ -721,7 +789,7 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.font = '7px JetBrains Mono';
                 ctx.fillStyle = '#00f0ff';
                 ctx.textAlign = 'center';
-                ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 6);
+                ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 5);
                 ctx.restore();
             }
         });
@@ -752,13 +820,26 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.restore();
         };
 
+        // 繪製均線
         drawLine(showMA5, '#00ff66', getYPrice);
         drawLine(showMA30, '#ffea00', getYPrice);
         drawLine(showMA45, '#ff9100', getYPrice);
         drawLine(showMA60, '#ff007f', getYPrice);
-        drawLine(showVM5, '#00f0ff', getYVol, 0.9);
-        drawLine(showVM20, '#9d4edd', getYVol, 0.9);
 
+        // 繪製 MACD 柱狀圖與線條
+        showHist.forEach((hVal, i) => {
+            if (hVal === null) return;
+            const x = padding.left + i * barWidth + barWidth / 2;
+            const yH = getYMacd(hVal);
+            const bw = Math.max(barWidth * 0.7, 1);
+            ctx.fillStyle = hVal >= 0 ? 'rgba(0, 255, 102, 0.65)' : 'rgba(255, 42, 109, 0.65)';
+            ctx.fillRect(x - bw / 2, Math.min(zeroY, yH), bw, Math.max(Math.abs(yH - zeroY), 1));
+        });
+
+        drawLine(showDIF, '#00f0ff', getYMacd, 1);
+        drawLine(showDEA, '#ffea00', getYMacd, 1);
+
+        // 繪製 K線與成交量
         showK.forEach((k, i) => {
             const absoluteIdx = showStartIndex + i;
             const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]), vol = parseFloat(k[5]);
@@ -780,31 +861,12 @@ canvas { display: block; width: 100%; height: 100%; }
             const bw = Math.max(barWidth * 0.7, 1);
             ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH);
 
+            // 成交量柱
             ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.4)' : 'rgba(255, 42, 109, 0.4)';
             const vY = getYVol(vol);
             ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
-            const vm5Val = vm5All[absoluteIdx];
-            const vm20Val = vm20All[absoluteIdx];
-            const vm5Prev = vm5All[absoluteIdx - 1];
-            const vm20Prev = vm20All[absoluteIdx - 1];
-
-            const isVolWarmingNow = (vm5Val !== null && vm20Val !== null && vm5Val > vm20Val);
-            const isVolWarmingPrev = (vm5Prev !== null && vm20Prev !== null && vm5Prev > vm20Prev);
-            const isFirstBarVolWarming = isVolWarmingNow && !isVolWarmingPrev;
-
-            if (isFirstBarVolWarming) {
-                ctx.save();
-                ctx.font = 'bold 9px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.fillStyle = '#00f0ff';
-                ctx.shadowColor = '#00f0ff';
-                ctx.shadowBlur = 6;
-                ctx.fillText('🔥', x, volTop - 11);
-                ctx.restore();
-            }
-
+            // 突破圖標提示
             const checkAboveMAs30_45_60 = (closes, ma30, ma45, ma60, idx) => {
                 if (idx < 0 || idx >= closes.length) return false;
                 const price = closes[idx];
@@ -832,7 +894,7 @@ canvas { display: block; width: 100%; height: 100%; }
     }
 
     function loadAndDrawCharts(symbol) {
-        dom.tagText1h.innerText = `1H (${COUNT_1H})`;
+        dom.tagText1h.innerText = `1H (${COUNT_1H}) - K線 + 成交量 + MACD`;
         const cached = klinesCache.get(symbol);
         if (cached) {
             renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H);
