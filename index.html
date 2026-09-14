@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -273,8 +272,6 @@ canvas { display: block; width: 100%; height: 100%; }
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff5555"></div>5VM</div>
-                <div class="legend-item"><div class="legend-color" style="background:#bd93f9"></div>20VM</div>
                 <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>DIF</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>DEA</div>
             </div>
@@ -282,7 +279,7 @@ canvas { display: block; width: 100%; height: 100%; }
         </div>
         <div class="charts-wrapper" id="chartsWrapper">
             <div class="chart-panel" id="wrapper1h" data-period="1h">
-                <span class="panel-tag" id="tagText1h">1H (K線+成交量+MACD)</span>
+                <span class="panel-tag" id="tagText1h">1H (K線+MACD)</span>
                 <canvas id="klineCanvas1h"></canvas>
             </div>
         </div>
@@ -294,9 +291,8 @@ canvas { display: block; width: 100%; height: 100%; }
     const API_BASE = 'https://fapi.binance.com';
     const P0 = 5, P1 = 30, P2 = 45, P3 = 60;
     const COUNT_1H = 80;
-    const MAX_VM_PERIOD = 20;
 
-    const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, MAX_VM_PERIOD, 35);
+    const FETCH_LIMIT_1H = COUNT_1H + Math.max(P3, 35);
 
     let results1H = [];
     let resultsLowRisk = [];
@@ -522,7 +518,6 @@ canvas { display: block; width: 100%; height: 100%; }
             return;
         }
 
-        // 過濾出 USDT 結算合約並依 24H 漲幅由高到低排序，取前 100 檔
         const candidateSymbols = allTickers
             .filter(d => d.symbol.endsWith('USDT'))
             .sort((a, b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent))
@@ -642,13 +637,10 @@ canvas { display: block; width: 100%; height: 100%; }
 
     function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount) {
         const closesAll = klinesRaw.map(k => parseFloat(k[4]));
-        const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
         const ma5All = calculateSMA(closesAll, P0);
         const ma30All = calculateSMA(closesAll, P1);
         const ma45All = calculateSMA(closesAll, P2);
         const ma60All = calculateSMA(closesAll, P3);
-        const vm5All = calculateSMA(volumesAll, 5);
-        const vm20All = calculateSMA(volumesAll, 20);
         const macdAll = calculateMACD(closesAll);
 
         const actualShowCount = Math.min(showCount, klinesRaw.length);
@@ -659,8 +651,6 @@ canvas { display: block; width: 100%; height: 100%; }
         const showMA30 = ma30All.slice(-actualShowCount);
         const showMA45 = ma45All.slice(-actualShowCount);
         const showMA60 = ma60All.slice(-actualShowCount);
-        const showVM5 = vm5All.slice(-actualShowCount);
-        const showVM20 = vm20All.slice(-actualShowCount);
         const showDIF = macdAll.dif.slice(-actualShowCount);
         const showDEA = macdAll.dea.slice(-actualShowCount);
         const showHist = macdAll.histogram.slice(-actualShowCount);
@@ -676,14 +666,13 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
+        // 重新分配版面：主圖(65%)、下方MACD(25%)，移除成交量區域
         const padding = { top: 20, bottom: 6, left: 6, right: 60 };
         const totalH = height - padding.top - padding.bottom;
-        const priceH = totalH * 0.50;
-        const volH = totalH * 0.18;
-        const macdH = totalH * 0.22;
+        const priceH = totalH * 0.65;
+        const macdH = totalH * 0.28;
 
-        const volTop = padding.top + priceH + totalH * 0.04;
-        const macdTop = volTop + volH + totalH * 0.04;
+        const macdTop = padding.top + priceH + totalH * 0.07;
         const chartW = width - padding.left - padding.right;
 
         let minP = Infinity, maxP = -Infinity;
@@ -691,16 +680,6 @@ canvas { display: block; width: 100%; height: 100%; }
             const l = parseFloat(k[3]), h = parseFloat(k[2]);
             if (l < minP) minP = l;
             if (h > maxP) maxP = h;
-        });
-
-        let maxVol = -Infinity;
-        showK.forEach((k, i) => {
-            const v = parseFloat(k[5]);
-            if (v > maxVol) maxVol = v;
-            const v5 = showVM5[i];
-            if (v5 !== null && v5 > maxVol) maxVol = v5;
-            const v20 = showVM20[i];
-            if (v20 !== null && v20 > maxVol) maxVol = v20;
         });
 
         let maxMacdVal = 0;
@@ -715,7 +694,6 @@ canvas { display: block; width: 100%; height: 100%; }
 
         const priceRange = maxP - minP || 1;
         const getYPrice = (p) => padding.top + priceH - ((p - minP) / priceRange) * priceH;
-        const getYVol = (v) => volTop + volH - (v / (maxVol || 1)) * volH;
         const getYMacd = (v) => macdTop + macdH / 2 - (v / maxMacdVal) * (macdH / 2 * 0.85);
 
         const barWidth = chartW / actualShowCount;
@@ -728,7 +706,7 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.textAlign = 'left';
         ctx.lineWidth = 1;
 
-        const gridLines = 2;
+        const gridLines = 3;
         for (let i = 0; i <= gridLines; i++) {
             const y = padding.top + (priceH / gridLines) * i;
             const pVal = maxP - (priceRange / gridLines) * i;
@@ -738,13 +716,6 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.stroke();
             ctx.fillText(pVal.toFixed(2), width - padding.right + 3, y + 3);
         }
-
-        ctx.beginPath();
-        ctx.moveTo(padding.left, volTop);
-        ctx.lineTo(width - padding.right, volTop);
-        ctx.stroke();
-        const formatVol = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : (v / 1e3).toFixed(0) + 'K';
-        ctx.fillText(formatVol(maxVol), width - padding.right + 3, volTop + 6);
 
         const zeroY = getYMacd(0);
         ctx.beginPath();
@@ -845,7 +816,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
         showK.forEach((k, i) => {
             const absoluteIdx = showStartIndex + i;
-            const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]), vol = parseFloat(k[5]);
+            const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]);
             const x = padding.left + i * barWidth + barWidth / 2;
             const isUp = close >= open;
             const color = isUp ? '#00ff66' : '#ff2a6d';
@@ -863,10 +834,6 @@ canvas { display: block; width: 100%; height: 100%; }
             const bodyH = Math.max(Math.abs(yOpen - yClose), 1);
             const bw = Math.max(barWidth * 0.7, 1);
             ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH);
-
-            ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.4)' : 'rgba(255, 42, 109, 0.4)';
-            const vY = getYVol(vol);
-            ctx.fillRect(x - bw / 2, vY, bw, volTop + volH - vY);
 
             const checkAboveMAs30_45_60 = (closes, ma30, ma45, ma60, idx) => {
                 if (idx < 0 || idx >= closes.length) return false;
@@ -892,13 +859,10 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.restore();
             }
         });
-
-        drawLine(showVM5, '#ff5555', getYVol, 1);
-        drawLine(showVM20, '#bd93f9', getYVol, 1);
     }
 
     function loadAndDrawCharts(symbol) {
-        dom.tagText1h.innerText = `1H (${COUNT_1H}) - K線 + 成交量(5VM/20VM) + MACD`;
+        dom.tagText1h.innerText = `1H (${COUNT_1H}) - K線 + MACD`;
         const cached = klinesCache.get(symbol);
         if (cached) {
             renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H);
