@@ -272,6 +272,8 @@ canvas { display: block; width: 100%; height: 100%; }
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff5555"></div>5VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#bd93f9"></div>20VM</div>
                 <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>DIF</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>DEA</div>
             </div>
@@ -353,7 +355,6 @@ canvas { display: block; width: 100%; height: 100%; }
         let emaSlow = null;
         let emaSignal = null;
 
-        let validCount = 0;
         for (let i = 0; i < len; i++) {
             const price = closes[i];
             if (emaFast === null) {
@@ -643,6 +644,8 @@ canvas { display: block; width: 100%; height: 100%; }
         const ma30All = calculateSMA(closesAll, P1);
         const ma45All = calculateSMA(closesAll, P2);
         const ma60All = calculateSMA(closesAll, P3);
+        const vm5All = calculateSMA(volumesAll, 5);
+        const vm20All = calculateSMA(volumesAll, 20);
         const macdAll = calculateMACD(closesAll);
 
         const actualShowCount = Math.min(showCount, klinesRaw.length);
@@ -653,6 +656,8 @@ canvas { display: block; width: 100%; height: 100%; }
         const showMA30 = ma30All.slice(-actualShowCount);
         const showMA45 = ma45All.slice(-actualShowCount);
         const showMA60 = ma60All.slice(-actualShowCount);
+        const showVM5 = vm5All.slice(-actualShowCount);
+        const showVM20 = vm20All.slice(-actualShowCount);
         const showDIF = macdAll.dif.slice(-actualShowCount);
         const showDEA = macdAll.dea.slice(-actualShowCount);
         const showHist = macdAll.histogram.slice(-actualShowCount);
@@ -687,9 +692,13 @@ canvas { display: block; width: 100%; height: 100%; }
         });
 
         let maxVol = -Infinity;
-        showK.forEach(k => {
+        showK.forEach((k, i) => {
             const v = parseFloat(k[5]);
             if (v > maxVol) maxVol = v;
+            const v5 = showVM5[i];
+            if (v5 !== null && v5 > maxVol) maxVol = v5;
+            const v20 = showVM20[i];
+            if (v20 !== null && v20 > maxVol) maxVol = v20;
         });
 
         let maxMacdVal = 0;
@@ -891,10 +900,14 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.restore();
             }
         });
+
+        // 繪製成交量均線 (5VM, 20VM) 在成交量子圖上
+        drawLine(showVM5, '#ff5555', getYVol, 1);
+        drawLine(showVM20, '#bd93f9', getYVol, 1);
     }
 
     function loadAndDrawCharts(symbol) {
-        dom.tagText1h.innerText = `1H (${COUNT_1H}) - K線 + 成交量 + MACD`;
+        dom.tagText1h.innerText = `1H (${COUNT_1H}) - K線 + 成交量(5VM/20VM) + MACD`;
         const cached = klinesCache.get(symbol);
         if (cached) {
             renderCanvasChart(dom.canvas1h, dom.wrapper1h, ctx1h, cached.k1h, COUNT_1H);
