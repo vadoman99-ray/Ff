@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>⚡ 極速多週期多頭排列儀表板 (漲幅&成交量前100)</title>
+<title>⚡ 極速多週期多頭排列儀表板 (漲幅前100)</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap');
 :root {
@@ -45,7 +45,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 }
 .header-top { display: flex; justify-content: space-between; align-items: center; }
 .header-title {
-    font-size: 0.95rem;
+    font-size: 1.1rem;
     font-weight: 900;
     letter-spacing: -0.5px;
     background: linear-gradient(135deg, #fff 30%, var(--manga-cyan));
@@ -144,6 +144,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .badge-lowrisk { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 234, 0, 0.2); color: var(--manga-yellow); border: 1px solid var(--manga-yellow); }
 .val-up { color: var(--manga-green); }
 .val-down { color: var(--manga-red); }
+
 .chart-modal {
     position: fixed;
     top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
@@ -160,7 +161,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 }
 .chart-modal.active { display: flex; }
 .chart-box {
-    width: 100%; max-width: 1050px;
+    width: 100%; max-width: 1200px;
     height: 100%; max-height: 100vh; max-height: 100dvh;
     background: #0b0f19;
     border: 1px solid rgba(0, 240, 255, 0.35);
@@ -217,9 +218,27 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .nav-btn:hover { background: var(--manga-cyan); color: #000; box-shadow: 0 0 12px var(--manga-cyan); }
 .nav-btn.prev { left: 4px; }
 .nav-btn.next { right: 4px; }
-.charts-wrapper { flex: 1; width: 100%; display: flex; flex-direction: column; background: #060911; overflow: hidden; min-height: 0; }
-.chart-panel { flex: 1; width: 100%; position: relative; border-bottom: 1px solid rgba(255, 255, 255, 0.08); min-height: 0; }
-.chart-panel:last-child { border-bottom: none; }
+
+.charts-wrapper {
+    flex: 1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    background: #060911;
+    overflow: hidden;
+    min-height: 0;
+}
+.chart-panel {
+    position: relative;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 0;
+}
+.chart-panel:nth-child(2) { border-right: none; }
+.chart-panel:nth-child(4) { border-right: none; }
+.chart-panel:nth-child(3), .chart-panel:nth-child(4) { border-bottom: none; }
+
 .panel-tag {
     position: absolute; top: 3px; left: 6px; z-index: 5;
     font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; font-weight: 800;
@@ -229,6 +248,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     pointer-events: none;
 }
 canvas { display: block; width: 100%; height: 100%; }
+
 @media (max-width: 600px) {
     .chart-modal { padding: 0; }
     .chart-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
@@ -243,7 +263,7 @@ canvas { display: block; width: 100%; height: 100%; }
 <body>
 <div class="app-header">
     <div class="header-top">
-        <div class="header-title">⚡ 多週期多頭排列 (漲幅&成交量前100)</div>
+        <div class="header-title">⚡ 多週期多頭排列儀表板 (漲幅前100)</div>
         <button id="scanBtn" class="scan-btn">啟動極速掃描</button>
     </div>
 </div>
@@ -259,7 +279,7 @@ canvas { display: block; width: 100%; height: 100%; }
 <div class="dashboard">
     <div class="stat-card">
         <div class="val" id="statTotal" style="color:var(--manga-cyan)">0</div>
-        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數 (漲幅&成交量前100)</div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數 (漲幅前100)</div>
     </div>
     <div class="stat-card entry">
         <div class="val" id="statEntry">0</div>
@@ -310,10 +330,11 @@ canvas { display: block; width: 100%; height: 100%; }
 (() => {
     const API_BASE = 'https://fapi.binance.com';
     const P0 = 5, P1 = 30, P2 = 45, P3 = 60;
+    
     const COUNT_15M = 150;
-    const COUNT_1H = 80;
-    const COUNT_4H = 48;
-    const COUNT_1D = 28;
+    const COUNT_1H = 50;
+    const COUNT_4H = 30;
+    const COUNT_1D = 18;
 
     const FETCH_LIMIT_15M = COUNT_15M + P3;
     const FETCH_LIMIT_1H = COUNT_1H + P3;
@@ -571,22 +592,12 @@ canvas { display: block; width: 100%; height: 100%; }
             return;
         }
 
-        const usdtTickers = allTickers.filter(d => d.symbol.endsWith('USDT'));
-        
-        // 取得漲幅前 100
-        const topChange = [...usdtTickers]
+        // 修改：改以 24 小時漲幅 (priceChangePercent) 由高到低排序取前 100 名
+        const candidateSymbols = allTickers
+            .filter(d => d.symbol.endsWith('USDT'))
             .sort((a, b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent))
-            .slice(0, 100);
-
-        // 取得成交量前 100
-        const topVolume = [...usdtTickers]
-            .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-            .slice(0, 100);
-
-        // 聯集 (Union) 並去重，確保漲幅前100與成交量前100的標的全部涵蓋
-        const candidateMap = new Map();
-        [...topChange, ...topVolume].forEach(d => candidateMap.set(d.symbol, d.symbol));
-        const candidateSymbols = Array.from(candidateMap.values());
+            .slice(0, 100)
+            .map(d => d.symbol);
 
         dom.statTotal.innerText = candidateSymbols.length;
 
@@ -630,6 +641,7 @@ canvas { display: block; width: 100%; height: 100%; }
                 resultsMulti = allMatches.filter(m => m.matchCount >= 2);
                 resultsLowRisk = allMatches.filter(m => m.isLightningMatch);
 
+                // 列表內同樣以漲幅由高到低排序
                 const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
                 results15M.sort(sortByChange);
                 results1H.sort(sortByChange);
@@ -763,7 +775,7 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
-        const padding = { top: 18, bottom: 6, left: 6, right: 55 };
+        const padding = { top: 18, bottom: 6, left: 6, right: 6 };
         const chartH = height - padding.top - padding.bottom;
         const chartW = width - padding.left - padding.right;
 
@@ -781,20 +793,15 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.clearRect(0, 0, width, height);
 
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.fillStyle = '#64748b';
-        ctx.font = '8px JetBrains Mono';
-        ctx.textAlign = 'left';
         ctx.lineWidth = 1;
 
         const gridLines = 3;
         for (let i = 0; i <= gridLines; i++) {
             const y = padding.top + (chartH / gridLines) * i;
-            const pVal = maxP - (priceRange / gridLines) * i;
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
             ctx.lineTo(width - padding.right, y);
             ctx.stroke();
-            ctx.fillText(pVal.toFixed(1), width - padding.right + 3, y + 3);
         }
 
         const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
