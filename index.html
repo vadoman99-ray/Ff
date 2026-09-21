@@ -443,7 +443,7 @@ canvas { display: block; width: 100%; height: 100%; }
         const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
         return (m30 !== null && price >= m30) && (m45 !== null && price >= m45) && (m60 !== null && price >= m60);
     }
-    function checkIsFirstBarLightning(klinesRaw, is4hOr1d) {
+    function checkIsFirstBarLightning(klinesRaw, useMA5) {
         const totalLen = klinesRaw.length;
         if (totalLen < 60) return false;
         const closes = klinesRaw.map(k => parseFloat(k[4]));
@@ -458,7 +458,7 @@ canvas { display: block; width: 100%; height: 100%; }
         let isNowAbove = false;
         let isPrevAbove = false;
 
-        if (is4hOr1d) {
+        if (useMA5) {
             isNowAbove = checkAboveMAs5_30_45_60(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, nowIdx);
             isPrevAbove = checkAboveMAs5_30_45_60(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, prevIdx);
         } else {
@@ -529,7 +529,8 @@ canvas { display: block; width: 100%; height: 100%; }
             if (bull4hReal) matchCount++;
             if (bull1dReal) matchCount++;
 
-            const lightning1h = checkIsFirstBarLightning(klines1h, false);
+            // 調整：1H, 4H, 1D 皆加入閃電第一根檢查（1H 使用 MA5 嚴格判斷或依需求調整，此處 1H/4H/1D 統一使用 MA5 檢測）
+            const lightning1h = checkIsFirstBarLightning(klines1h, true);
             const lightning4h = checkIsFirstBarLightning(klines4h, true);
             const lightning1d = checkIsFirstBarLightning(klines1d, true);
 
@@ -592,7 +593,6 @@ canvas { display: block; width: 100%; height: 100%; }
             return;
         }
 
-        // 修改：改以 24 小時漲幅 (priceChangePercent) 由高到低排序取前 100 名
         const candidateSymbols = allTickers
             .filter(d => d.symbol.endsWith('USDT'))
             .sort((a, b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent))
@@ -641,7 +641,6 @@ canvas { display: block; width: 100%; height: 100%; }
                 resultsMulti = allMatches.filter(m => m.matchCount >= 2);
                 resultsLowRisk = allMatches.filter(m => m.isLightningMatch);
 
-                // 列表內同樣以漲幅由高到低排序
                 const sortByChange = (a, b) => b.priceChange24h - a.priceChange24h;
                 results15M.sort(sortByChange);
                 results1H.sort(sortByChange);
@@ -936,7 +935,8 @@ canvas { display: block; width: 100%; height: 100%; }
 
             let isNowAbove = false;
             let isPrevAbove = false;
-            if (periodType === '4h' || periodType === '1d') {
+            // 圖表標示閃電：1H、4H、1D 統一採用 MA5 檢測判定
+            if (periodType === '1h' || periodType === '4h' || periodType === '1d') {
                 isNowAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
                 isPrevAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
             } else {
