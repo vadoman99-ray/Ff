@@ -229,12 +229,29 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     overflow: hidden;
     min-height: 0;
 }
+/* 單一圖表放大模式樣式 */
+.charts-wrapper.single-view {
+    display: block !important;
+}
+.charts-wrapper.single-view .chart-panel {
+    display: none;
+    width: 100%;
+    height: 100%;
+    border: none !important;
+}
+.charts-wrapper.single-view .chart-panel.active-single {
+    display: block;
+}
+
 .chart-panel {
     position: relative;
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     min-height: 0;
+    cursor: pointer; /* 提示可點擊放大 */
+    transition: background-color 0.2s;
 }
+.chart-panel:hover { background: rgba(0, 240, 255, 0.03); }
 .chart-panel:nth-child(2) { border-right: none; }
 .chart-panel:nth-child(4) { border-right: none; }
 .chart-panel:nth-child(3), .chart-panel:nth-child(4) { border-bottom: none; }
@@ -352,6 +369,7 @@ canvas { display: block; width: 100%; height: 100%; }
     let activeTab = '15m';
     let tickerMap = new Map();
     let currentIndex = -1;
+    let maximizedPeriod = null; // 記錄目前放大的週期 ('15m', '1h', '4h', '1d', 或 null)
     const klinesCache = new Map();
 
     const dom = {
@@ -797,6 +815,9 @@ canvas { display: block; width: 100%; height: 100%; }
     }
 
     function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, periodType) {
+        // 如果目前處於單一放大模式，且不是這個週期，則跳過繪圖以節省效能
+        if (maximizedPeriod && maximizedPeriod !== periodType) return;
+
         const closesAll = klinesRaw.map(k => parseFloat(k[4]));
 
         const ma5All = calculateSMA(closesAll, P0);
@@ -832,7 +853,6 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
-        // 版面上下切分：上方 62% 給 K 線，下方 32% 給 MACD 附圖
         const padding = { top: 16, bottom: 4, left: 4, right: 4 };
         const totalH = height - padding.top - padding.bottom;
         const chartH = totalH * 0.62;
@@ -864,7 +884,6 @@ canvas { display: block; width: 100%; height: 100%; }
 
         ctx.clearRect(0, 0, width, height);
 
-        // 畫主圖網格
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.lineWidth = 1;
         for (let i = 0; i <= 3; i++) {
@@ -877,7 +896,6 @@ canvas { display: block; width: 100%; height: 100%; }
 
         const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
 
-        // 時間分隔線
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
@@ -960,13 +978,11 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.restore();
         };
 
-        // 畫價格均線
         drawLine(showMA5, '#00ff66', 1);
         drawLine(showMA30, '#ffea00', 1);
         drawLine(showMA45, '#ff9100', 1);
         drawLine(showMA60, '#ff007f', 1.2);
 
-        // 畫 K 線主圖
         showK.forEach((k, i) => {
             const absoluteIdx = showStartIndex + i;
             const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]);
@@ -988,7 +1004,6 @@ canvas { display: block; width: 100%; height: 100%; }
             const bw = Math.max(barWidth * 0.7, 1);
             ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH);
 
-            // 閃電標示
             const checkAboveMAs5_30_45_60 = (closes, ma5, ma30, ma45, ma60, idx) => {
                 if (idx < 0 || idx >= closes.length) return false;
                 const price = closes[idx];
@@ -1030,8 +1045,6 @@ canvas { display: block; width: 100%; height: 100%; }
             }
         });
 
-        // ================= MACD 附圖繪製 =================
-        // 畫 MACD 零軸
         const zeroY = getYMacd(0);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.lineWidth = 1;
@@ -1042,13 +1055,12 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // 畫 MACD 柱狀圖 (Histogram)
         showHist.forEach((hVal, i) => {
             if (hVal === null) return;
             const x = padding.left + i * barWidth + barWidth / 2;
             const yVal = getYMacd(hVal);
             const bw = Math.max(barWidth * 0.7, 1);
-            ctx.fillStyle = hVal >= >= 0 ? 'rgba(0, 255, 102, 0.6)' : 'rgba(255, 42, 109, 0.6)';
+            ctx.fillStyle = hVal >= 0 ? 'rgba(0, 255, 102, 0.6)' : 'rgba(255, 42, 109, 0.6)';
             
             if (hVal >= 0) {
                 ctx.fillRect(x - bw / 2, yVal, bw, zeroY - yVal);
@@ -1057,7 +1069,6 @@ canvas { display: block; width: 100%; height: 100%; }
             }
         });
 
-        // 畫 MACD 快線與 Signal 信號線
         const drawMacdLine = (dataArray, color) => {
             ctx.save();
             ctx.strokeStyle = color;
@@ -1079,8 +1090,8 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.restore();
         };
 
-        drawMacdLine(showMacd, '#00f0ff');   // MACD 線 (亮青色)
-        drawMacdLine(showSignal, '#ffea00'); // Signal 線 (亮黃色)
+        drawMacdLine(showMacd, '#00f0ff');
+        drawMacdLine(showSignal, '#ffea00');
     }
 
     function loadAndDrawCharts(symbol) {
@@ -1117,6 +1128,11 @@ canvas { display: block; width: 100%; height: 100%; }
     }
 
     function closeChartModal() {
+        // 重置放大狀態
+        maximizedPeriod = null;
+        dom.chartsWrapper.classList.remove('single-view');
+        ['15m', '1h', '4h', '1d'].forEach(p => document.getElementById(`wrapper${p}`).classList.remove('active-single'));
+
         dom.chartModal.classList.remove('active');
         dom.chartModal.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('modal-open');
@@ -1131,6 +1147,34 @@ canvas { display: block; width: 100%; height: 100%; }
         if (newIndex >= currentList.length) newIndex = 0;
         openChartModal(newIndex);
     }
+
+    // 綁定各週期圖表面板點擊放大/還原互動
+    ['15m', '1h', '4h', '1d'].forEach(period => {
+        const panel = document.getElementById(`wrapper${period}`);
+        panel.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (maximizedPeriod === period) {
+                // 還原 4 分割
+                maximizedPeriod = null;
+                dom.chartsWrapper.classList.remove('single-view');
+                ['15m', '1h', '4h', '1d'].forEach(p => document.getElementById(`wrapper${p}`).classList.remove('active-single'));
+            } else {
+                // 放大該單一週期
+                maximizedPeriod = period;
+                dom.chartsWrapper.classList.add('single-view');
+                ['15m', '1h', '4h', '1d'].forEach(p => {
+                    const pEl = document.getElementById(`wrapper${p}`);
+                    if (p === period) pEl.classList.add('active-single');
+                    else pEl.classList.remove('active-single');
+                });
+            }
+            // 重新繪製以適應全螢幕尺寸
+            const currentList = getCurrentList();
+            if (currentIndex !== -1 && currentList[currentIndex]) {
+                loadAndDrawCharts(currentList[currentIndex].symbol);
+            }
+        });
+    });
 
     let touchStartX = 0, touchStartY = 0;
     let touchEndX = 0, touchEndY = 0;
