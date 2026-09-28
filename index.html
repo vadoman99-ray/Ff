@@ -302,8 +302,8 @@ canvas { display: block; width: 100%; height: 100%; }
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>5VM</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>20VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>MACD</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>Signal</div>
             </div>
             <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
         </div>
@@ -338,10 +338,10 @@ canvas { display: block; width: 100%; height: 100%; }
     const COUNT_4H = 30;
     const COUNT_1D = 18;
 
-    const FETCH_LIMIT_15M = COUNT_15M + P3;
-    const FETCH_LIMIT_1H = COUNT_1H + P3;
-    const FETCH_LIMIT_4H = COUNT_4H + P3;
-    const FETCH_LIMIT_1D = COUNT_1D + P3;
+    const FETCH_LIMIT_15M = COUNT_15M + P3 + 35;
+    const FETCH_LIMIT_1H = COUNT_1H + P3 + 35;
+    const FETCH_LIMIT_4H = COUNT_4H + P3 + 35;
+    const FETCH_LIMIT_1D = COUNT_1D + P3 + 35;
 
     let results15M = [];
     let results1H = [];
@@ -410,6 +410,54 @@ canvas { display: block; width: 100%; height: 100%; }
             ma[i] = sum / period;
         }
         return ma;
+    }
+
+    function calculateEMA(data, period) {
+        const len = data.length;
+        const ema = new Array(len).fill(null);
+        if (len === 0) return ema;
+        const multiplier = 2 / (period + 1);
+        let sum = 0;
+        let initCount = Math.min(period, len);
+        for (let i = 0; i < initCount; i++) sum += data[i];
+        let prevEMA = sum / initCount;
+        ema[initCount - 1] = prevEMA;
+        for (let i = initCount; i < len; i++) {
+            prevEMA = (data[i] - prevEMA) * multiplier + prevEMA;
+            ema[i] = prevEMA;
+        }
+        return ema;
+    }
+
+    function calculateMACD(closes, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+        const fastEMA = calculateEMA(closes, fastPeriod);
+        const slowEMA = calculateEMA(closes, slowPeriod);
+        const macdLine = new Array(closes.length).fill(null);
+        for (let i = 0; i < closes.length; i++) {
+            if (fastEMA[i] !== null && slowEMA[i] !== null) {
+                macdLine[i] = fastEMA[i] - slowEMA[i];
+            }
+        }
+        const validMacdSubset = [];
+        const validIndices = [];
+        for (let i = 0; i < macdLine.length; i++) {
+            if (macdLine[i] !== null) {
+                validMacdSubset.push(macdLine[i]);
+                validIndices.push(i);
+            }
+        }
+        const signalSubset = calculateEMA(validMacdSubset, signalPeriod);
+        const signalLine = new Array(closes.length).fill(null);
+        const histogram = new Array(closes.length).fill(null);
+        for (let j = 0; j < validIndices.length; j++) {
+            const origIdx = validIndices[j];
+            const sigVal = signalSubset[j];
+            signalLine[origIdx] = sigVal;
+            if (sigVal !== null) {
+                histogram[origIdx] = macdLine[origIdx] - sigVal;
+            }
+        }
+        return { macdLine, signalLine, histogram };
     }
 
     function formatVolumeText(volume) {
@@ -750,15 +798,16 @@ canvas { display: block; width: 100%; height: 100%; }
 
     function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, periodType) {
         const closesAll = klinesRaw.map(k => parseFloat(k[4]));
-        const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
 
         const ma5All = calculateSMA(closesAll, P0);
         const ma30All = calculateSMA(closesAll, P1);
         const ma45All = calculateSMA(closesAll, P2);
         const ma60All = calculateSMA(closesAll, P3);
 
-        const vm5All = calculateSMA(volumesAll, 5);
-        const vm20All = calculateSMA(volumesAll, 20);
+        const macdRes = calculateMACD(closesAll, 12, 26, 9);
+        const macdAll = macdRes.macdLine;
+        const signalAll = macdRes.signalLine;
+        const histAll = macdRes.histogram;
 
         const actualShowCount = Math.min(showCount, klinesRaw.length);
         const showStartIndex = klinesRaw.length - actualShowCount;
@@ -768,8 +817,9 @@ canvas { display: block; width: 100%; height: 100%; }
         const showMA30 = ma30All.slice(-actualShowCount);
         const showMA45 = ma45All.slice(-actualShowCount);
         const showMA60 = ma60All.slice(-actualShowCount);
-        const showVM5 = vm5All.slice(-actualShowCount);
-        const showVM20 = vm20All.slice(-actualShowCount);
+        const showMacd = macdAll.slice(-actualShowCount);
+        const showSignal = signalAll.slice(-actualShowCount);
+        const showHist = histAll.slice(-actualShowCount);
 
         const rect = wrapper.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
@@ -782,12 +832,12 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
-        // 版面上下切分：上方 72% 給 K 線，下方 28% 給成交量
+        // 版面上下切分：上方 62% 給 K 線，下方 32% 給 MACD 附圖
         const padding = { top: 16, bottom: 4, left: 4, right: 4 };
         const totalH = height - padding.top - padding.bottom;
-        const chartH = totalH * 0.70;
-        const volAreaTop = padding.top + chartH + 10;
-        const volH = totalH * 0.25;
+        const chartH = totalH * 0.62;
+        const macdAreaTop = padding.top + chartH + 14;
+        const macdH = totalH * 0.32;
         const chartW = width - padding.left - padding.right;
 
         let minP = Infinity, maxP = -Infinity;
@@ -799,19 +849,22 @@ canvas { display: block; width: 100%; height: 100%; }
         const priceRange = maxP - minP || 1;
         const getYPrice = (p) => padding.top + chartH - ((p - minP) / priceRange) * chartH;
 
-        let maxVol = 0;
-        showK.forEach((k) => {
-            const v = parseFloat(k[5]);
-            if (v > maxVol) maxVol = v;
+        let maxMacdVal = 0;
+        showMacd.forEach((v, idx) => {
+            const s = showSignal[idx];
+            const h = showHist[idx];
+            if (v !== null && Math.abs(v) > maxMacdVal) maxMacdVal = Math.abs(v);
+            if (s !== null && Math.abs(s) > maxMacdVal) maxMacdVal = Math.abs(s);
+            if (h !== null && Math.abs(h) > maxMacdVal) maxMacdVal = Math.abs(h);
         });
-        maxVol = maxVol || 1;
-        const getYVol = (v) => volAreaTop + volH - (v / maxVol) * volH;
+        maxMacdVal = maxMacdVal || 0.0001;
+        const getYMacd = (val) => macdAreaTop + macdH / 2 - (val / maxMacdVal) * (macdH / 2);
 
         const barWidth = chartW / actualShowCount;
 
         ctx.clearRect(0, 0, width, height);
 
-        // 畫格線
+        // 畫主圖網格
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.lineWidth = 1;
         for (let i = 0; i <= 3; i++) {
@@ -886,12 +939,10 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.setLineDash([]);
         ctx.lineWidth = 1;
 
-        const drawLine = (dataArray, color, width = 1, isDashed = false) => {
+        const drawLine = (dataArray, color, width = 1) => {
             ctx.save();
             ctx.strokeStyle = color;
             ctx.lineWidth = width;
-            if (isDashed) ctx.setLineDash([3, 2]);
-            else ctx.setLineDash([]);
             ctx.beginPath();
             let started = false;
             dataArray.forEach((val, i) => {
@@ -915,41 +966,14 @@ canvas { display: block; width: 100%; height: 100%; }
         drawLine(showMA45, '#ff9100', 1);
         drawLine(showMA60, '#ff007f', 1.2);
 
-        // 畫成交量均線 (5VM, 20VM)
-        const drawVolLine = (dataArray, color) => {
-            ctx.save();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            let started = false;
-            dataArray.forEach((val, i) => {
-                if (val === null) return;
-                const x = padding.left + i * barWidth + barWidth / 2;
-                const y = getYVol(val);
-                if (!started) {
-                    ctx.moveTo(x, y);
-                    started = true;
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            });
-            ctx.stroke();
-            ctx.restore();
-        };
-
-        drawVolLine(showVM5, '#00f0ff');
-        drawVolLine(showVM20, '#ff9100');
-
-        // 畫 K 線與成交量柱狀圖
+        // 畫 K 線主圖
         showK.forEach((k, i) => {
             const absoluteIdx = showStartIndex + i;
             const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]);
-            const vol = parseFloat(k[5]);
             const x = padding.left + i * barWidth + barWidth / 2;
             const isUp = close >= open;
             const color = isUp ? '#00ff66' : '#ff2a6d';
 
-            // K線引線與實體
             ctx.strokeStyle = color;
             ctx.fillStyle = color;
             ctx.beginPath();
@@ -963,12 +987,6 @@ canvas { display: block; width: 100%; height: 100%; }
             const bodyH = Math.max(Math.abs(yOpen - yClose), 1);
             const bw = Math.max(barWidth * 0.7, 1);
             ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH);
-
-            // 成交量柱狀圖
-            const yVolTop = getYVol(vol);
-            const volBarH = Math.max((vol / maxVol) * volH, 1);
-            ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.45)' : 'rgba(255, 42, 109, 0.45)';
-            ctx.fillRect(x - bw / 2, yVolTop, bw, volBarH);
 
             // 閃電標示
             const checkAboveMAs5_30_45_60 = (closes, ma5, ma30, ma45, ma60, idx) => {
@@ -1011,6 +1029,58 @@ canvas { display: block; width: 100%; height: 100%; }
                 ctx.restore();
             }
         });
+
+        // ================= MACD 附圖繪製 =================
+        // 畫 MACD 零軸
+        const zeroY = getYMacd(0);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, zeroY);
+        ctx.lineTo(width - padding.right, zeroY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 畫 MACD 柱狀圖 (Histogram)
+        showHist.forEach((hVal, i) => {
+            if (hVal === null) return;
+            const x = padding.left + i * barWidth + barWidth / 2;
+            const yVal = getYMacd(hVal);
+            const bw = Math.max(barWidth * 0.7, 1);
+            ctx.fillStyle = hVal >= >= 0 ? 'rgba(0, 255, 102, 0.6)' : 'rgba(255, 42, 109, 0.6)';
+            
+            if (hVal >= 0) {
+                ctx.fillRect(x - bw / 2, yVal, bw, zeroY - yVal);
+            } else {
+                ctx.fillRect(x - bw / 2, zeroY, bw, yVal - zeroY);
+            }
+        });
+
+        // 畫 MACD 快線與 Signal 信號線
+        const drawMacdLine = (dataArray, color) => {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            let started = false;
+            dataArray.forEach((val, i) => {
+                if (val === null) return;
+                const x = padding.left + i * barWidth + barWidth / 2;
+                const y = getYMacd(val);
+                if (!started) {
+                    ctx.moveTo(x, y);
+                    started = true;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            ctx.restore();
+        };
+
+        drawMacdLine(showMacd, '#00f0ff');   // MACD 線 (亮青色)
+        drawMacdLine(showSignal, '#ffea00'); // Signal 線 (亮黃色)
     }
 
     function loadAndDrawCharts(symbol) {
@@ -1025,10 +1095,10 @@ canvas { display: block; width: 100%; height: 100%; }
     }
 
     function updatePanelTags() {
-        dom.tagText15m.innerText = `15M (${COUNT_15M})`;
-        dom.tagText1h.innerText = `1H (${COUNT_1H})`;
-        dom.tagText4h.innerText = `4H (${COUNT_4H})`;
-        dom.tagText1d.innerText = `1D (${COUNT_1D})`;
+        dom.tagText15m.innerText = `15M (${COUNT_15M}) [MACD]`;
+        dom.tagText1h.innerText = `1H (${COUNT_1H}) [MACD]`;
+        dom.tagText4h.innerText = `4H (${COUNT_4H}) [MACD]`;
+        dom.tagText1d.innerText = `1D (${COUNT_1D}) [MACD]`;
     }
 
     function openChartModal(index) {
