@@ -187,7 +187,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .header-title-group { display: flex; align-items: center; gap: 6px; }
 .symbol-title { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 800; color: #fff; }
 .symbol-rank-tag { font-size: 0.65rem; color: var(--manga-cyan); font-weight: 800; }
-.legend-bar { display: flex; gap: 6px; font-size: 0.55rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
+.legend-bar { display: flex; gap: 6px; font-size: 0.52rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 2px; }
 .legend-color { width: 5px; height: 5px; border-radius: 2px; }
 .close-btn {
@@ -254,7 +254,7 @@ canvas { display: block; width: 100%; height: 100%; }
     .chart-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
     .chart-header { padding: 4px 8px; }
     .symbol-title { font-size: 0.8rem; }
-    .legend-bar { font-size: 0.5rem; gap: 4px; }
+    .legend-bar { font-size: 0.45rem; gap: 3px; }
     .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
     .tab-btn { font-size: 0.55rem; padding: 6px 1px; }
 }
@@ -302,6 +302,8 @@ canvas { display: block; width: 100%; height: 100%; }
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>5VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>20VM</div>
             </div>
             <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
         </div>
@@ -529,7 +531,6 @@ canvas { display: block; width: 100%; height: 100%; }
             if (bull4hReal) matchCount++;
             if (bull1dReal) matchCount++;
 
-            // 調整：1H, 4H, 1D 皆加入閃電第一根檢查（1H 使用 MA5 嚴格判斷或依需求調整，此處 1H/4H/1D 統一使用 MA5 檢測）
             const lightning1h = checkIsFirstBarLightning(klines1h, true);
             const lightning4h = checkIsFirstBarLightning(klines4h, true);
             const lightning1d = checkIsFirstBarLightning(klines1d, true);
@@ -749,10 +750,15 @@ canvas { display: block; width: 100%; height: 100%; }
 
     function renderCanvasChart(canvas, wrapper, ctx, klinesRaw, showCount, periodType) {
         const closesAll = klinesRaw.map(k => parseFloat(k[4]));
+        const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
+
         const ma5All = calculateSMA(closesAll, P0);
         const ma30All = calculateSMA(closesAll, P1);
         const ma45All = calculateSMA(closesAll, P2);
         const ma60All = calculateSMA(closesAll, P3);
+
+        const vm5All = calculateSMA(volumesAll, 5);
+        const vm20All = calculateSMA(volumesAll, 20);
 
         const actualShowCount = Math.min(showCount, klinesRaw.length);
         const showStartIndex = klinesRaw.length - actualShowCount;
@@ -762,6 +768,8 @@ canvas { display: block; width: 100%; height: 100%; }
         const showMA30 = ma30All.slice(-actualShowCount);
         const showMA45 = ma45All.slice(-actualShowCount);
         const showMA60 = ma60All.slice(-actualShowCount);
+        const showVM5 = vm5All.slice(-actualShowCount);
+        const showVM20 = vm20All.slice(-actualShowCount);
 
         const rect = wrapper.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
@@ -774,8 +782,12 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
-        const padding = { top: 18, bottom: 6, left: 6, right: 6 };
-        const chartH = height - padding.top - padding.bottom;
+        // 版面上下切分：上方 72% 給 K 線，下方 28% 給成交量
+        const padding = { top: 16, bottom: 4, left: 4, right: 4 };
+        const totalH = height - padding.top - padding.bottom;
+        const chartH = totalH * 0.70;
+        const volAreaTop = padding.top + chartH + 10;
+        const volH = totalH * 0.25;
         const chartW = width - padding.left - padding.right;
 
         let minP = Infinity, maxP = -Infinity;
@@ -784,19 +796,26 @@ canvas { display: block; width: 100%; height: 100%; }
             if (l < minP) minP = l;
             if (h > maxP) maxP = h;
         });
-
         const priceRange = maxP - minP || 1;
         const getYPrice = (p) => padding.top + chartH - ((p - minP) / priceRange) * chartH;
+
+        let maxVol = 0;
+        showK.forEach((k) => {
+            const v = parseFloat(k[5]);
+            if (v > maxVol) maxVol = v;
+        });
+        maxVol = maxVol || 1;
+        const getYVol = (v) => volAreaTop + volH - (v / maxVol) * volH;
+
         const barWidth = chartW / actualShowCount;
 
         ctx.clearRect(0, 0, width, height);
 
+        // 畫格線
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.lineWidth = 1;
-
-        const gridLines = 3;
-        for (let i = 0; i <= gridLines; i++) {
-            const y = padding.top + (chartH / gridLines) * i;
+        for (let i = 0; i <= 3; i++) {
+            const y = padding.top + (chartH / 3) * i;
             ctx.beginPath();
             ctx.moveTo(padding.left, y);
             ctx.lineTo(width - padding.right, y);
@@ -805,10 +824,10 @@ canvas { display: block; width: 100%; height: 100%; }
 
         const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
 
+        // 時間分隔線
         showK.forEach((k, i) => {
             const timestamp = parseInt(k[0]);
             const date = new Date(timestamp);
-            
             const utcDay = date.getUTCDay();
             const utcHour = date.getUTCHours();
             const utcMin = date.getUTCMinutes();
@@ -842,7 +861,7 @@ canvas { display: block; width: 100%; height: 100%; }
                     ctx.font = 'bold 8px JetBrains Mono';
                     ctx.fillStyle = '#9d4edd';
                     ctx.textAlign = 'center';
-                    ctx.fillText('週一', x, padding.top - 5);
+                    ctx.fillText('週一', x, padding.top - 4);
                     ctx.restore();
                 } else if (isDailyStart) {
                     ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
@@ -858,7 +877,7 @@ canvas { display: block; width: 100%; height: 100%; }
                     ctx.font = '7px JetBrains Mono';
                     ctx.fillStyle = '#00f0ff';
                     ctx.textAlign = 'center';
-                    ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 5);
+                    ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 4);
                     ctx.restore();
                 }
             }
@@ -890,18 +909,47 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.restore();
         };
 
+        // 畫價格均線
         drawLine(showMA5, '#00ff66', 1);
         drawLine(showMA30, '#ffea00', 1);
         drawLine(showMA45, '#ff9100', 1);
         drawLine(showMA60, '#ff007f', 1.2);
 
+        // 畫成交量均線 (5VM, 20VM)
+        const drawVolLine = (dataArray, color) => {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            let started = false;
+            dataArray.forEach((val, i) => {
+                if (val === null) return;
+                const x = padding.left + i * barWidth + barWidth / 2;
+                const y = getYVol(val);
+                if (!started) {
+                    ctx.moveTo(x, y);
+                    started = true;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            ctx.restore();
+        };
+
+        drawVolLine(showVM5, '#00f0ff');
+        drawVolLine(showVM20, '#ff9100');
+
+        // 畫 K 線與成交量柱狀圖
         showK.forEach((k, i) => {
             const absoluteIdx = showStartIndex + i;
             const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]);
+            const vol = parseFloat(k[5]);
             const x = padding.left + i * barWidth + barWidth / 2;
             const isUp = close >= open;
             const color = isUp ? '#00ff66' : '#ff2a6d';
 
+            // K線引線與實體
             ctx.strokeStyle = color;
             ctx.fillStyle = color;
             ctx.beginPath();
@@ -916,6 +964,13 @@ canvas { display: block; width: 100%; height: 100%; }
             const bw = Math.max(barWidth * 0.7, 1);
             ctx.fillRect(x - bw / 2, bodyTop, bw, bodyH);
 
+            // 成交量柱狀圖
+            const yVolTop = getYVol(vol);
+            const volBarH = Math.max((vol / maxVol) * volH, 1);
+            ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.45)' : 'rgba(255, 42, 109, 0.45)';
+            ctx.fillRect(x - bw / 2, yVolTop, bw, volBarH);
+
+            // 閃電標示
             const checkAboveMAs5_30_45_60 = (closes, ma5, ma30, ma45, ma60, idx) => {
                 if (idx < 0 || idx >= closes.length) return false;
                 const price = closes[idx];
@@ -935,7 +990,6 @@ canvas { display: block; width: 100%; height: 100%; }
 
             let isNowAbove = false;
             let isPrevAbove = false;
-            // 圖表標示閃電：1H、4H、1D 統一採用 MA5 檢測判定
             if (periodType === '1h' || periodType === '4h' || periodType === '1d') {
                 isNowAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx);
                 isPrevAbove = checkAboveMAs5_30_45_60(closesAll, ma5All, ma30All, ma45All, ma60All, absoluteIdx - 1);
