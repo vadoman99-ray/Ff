@@ -187,7 +187,7 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .header-title-group { display: flex; align-items: center; gap: 6px; }
 .symbol-title { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 800; color: #fff; }
 .symbol-rank-tag { font-size: 0.65rem; color: var(--manga-cyan); font-weight: 800; }
-.legend-bar { display: flex; gap: 6px; font-size: 0.48rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
+.legend-bar { display: flex; gap: 6px; font-size: 0.52rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 2px; }
 .legend-color { width: 5px; height: 5px; border-radius: 2px; }
 .close-btn {
@@ -270,7 +270,7 @@ canvas { display: block; width: 100%; height: 100%; }
     .chart-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
     .chart-header { padding: 4px 8px; }
     .symbol-title { font-size: 0.8rem; }
-    .legend-bar { font-size: 0.42rem; gap: 3px; }
+    .legend-bar { font-size: 0.45rem; gap: 3px; }
     .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
     .tab-btn { font-size: 0.55rem; padding: 6px 1px; }
 }
@@ -315,13 +315,13 @@ canvas { display: block; width: 100%; height: 100%; }
             </div>
             <div class="legend-bar">
                 <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>20MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>Vol</div>
                 <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5VM</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>20VM</div>
                 <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>MACD</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>Signal</div>
             </div>
             <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
         </div>
@@ -349,18 +349,17 @@ canvas { display: block; width: 100%; height: 100%; }
 <script>
 (() => {
     const API_BASE = 'https://fapi.binance.com';
-    const P_MA5 = 5, P_MA20 = 20, P_MA30 = 30, P_MA60 = 60;
-    const P_VM5 = 5, P_VM20 = 20;
+    const P0 = 5, P1 = 30, P2 = 45, P3 = 60;
     
     const COUNT_15M = 150;
     const COUNT_1H = 50;
     const COUNT_4H = 30;
     const COUNT_1D = 18;
 
-    const FETCH_LIMIT_15M = COUNT_15M + P_MA60 + 35;
-    const FETCH_LIMIT_1H = COUNT_1H + P_MA60 + 35;
-    const FETCH_LIMIT_4H = COUNT_4H + P_MA60 + 35;
-    const FETCH_LIMIT_1D = COUNT_1D + P_MA60 + 35;
+    const FETCH_LIMIT_15M = COUNT_15M + P3 + 35;
+    const FETCH_LIMIT_1H = COUNT_1H + P3 + 35;
+    const FETCH_LIMIT_4H = COUNT_4H + P3 + 35;
+    const FETCH_LIMIT_1D = COUNT_1D + P3 + 35;
 
     let results15M = [];
     let results1H = [];
@@ -820,15 +819,15 @@ canvas { display: block; width: 100%; height: 100%; }
         if (maximizedPeriod && maximizedPeriod !== periodType) return;
 
         const closesAll = klinesRaw.map(k => parseFloat(k[4]));
-        const volumesAll = klinesRaw.map(k => parseFloat(k[5]));
+        const volumesAll = klinesRaw.map(k => parseFloat(k[7])); // Binance volume index 7 is quote asset volume or index 5 is base asset volume. Using index 7 (quote volume) or index 5. Let's use index 5 (base asset volume) or index 7. Usually index 7 is USDT volume. Let's use index 5 (volume).
 
-        const ma5All = calculateSMA(closesAll, P_MA5);
-        const ma20All = calculateSMA(closesAll, P_MA20);
-        const ma30All = calculateSMA(closesAll, P_MA30);
-        const ma60All = calculateSMA(closesAll, P_MA60);
+        const ma5All = calculateSMA(closesAll, P0);
+        const ma30All = calculateSMA(closesAll, P1);
+        const ma45All = calculateSMA(closesAll, P2);
+        const ma60All = calculateSMA(closesAll, P3);
 
-        const vm5All = calculateSMA(volumesAll, P_VM5);
-        const vm20All = calculateSMA(volumesAll, P_VM20);
+        const vol5All = calculateSMA(volumesAll, 5);
+        const vol20All = calculateSMA(volumesAll, 20);
 
         const macdRes = calculateMACD(closesAll, 12, 26, 9);
         const macdAll = macdRes.macdLine;
@@ -840,12 +839,12 @@ canvas { display: block; width: 100%; height: 100%; }
 
         const showK = klinesRaw.slice(-actualShowCount);
         const showMA5 = ma5All.slice(-actualShowCount);
-        const showMA20 = ma20All.slice(-actualShowCount);
         const showMA30 = ma30All.slice(-actualShowCount);
+        const showMA45 = ma45All.slice(-actualShowCount);
         const showMA60 = ma60All.slice(-actualShowCount);
-        const showVol = volumesAll.slice(-actualShowCount);
-        const showVM5 = vm5All.slice(-actualShowCount);
-        const showVM20 = vm20All.slice(-actualShowCount);
+        const showVols = volumesAll.slice(-actualShowCount);
+        const showVol5 = vol5All.slice(-actualShowCount);
+        const showVol20 = vol20All.slice(-actualShowCount);
         const showMacd = macdAll.slice(-actualShowCount);
         const showSignal = signalAll.slice(-actualShowCount);
         const showHist = histAll.slice(-actualShowCount);
@@ -861,14 +860,15 @@ canvas { display: block; width: 100%; height: 100%; }
         const width = rect.width;
         const height = rect.height;
 
-        // 版面配置調整：主圖 (52%) -> 成交量區 (20%) -> MACD區 (20%)
         const padding = { top: 16, bottom: 4, left: 4, right: 4 };
         const totalH = height - padding.top - padding.bottom;
+        
+        // 版面配置：主圖 50%、成交量副圖 23%、MACD副圖 23%
         const chartH = totalH * 0.50;
         const volAreaTop = padding.top + chartH + 12;
-        const volH = totalH * 0.20;
+        const volH = totalH * 0.23;
         const macdAreaTop = volAreaTop + volH + 12;
-        const macdH = totalH * 0.22;
+        const macdH = totalH * 0.23;
         const chartW = width - padding.left - padding.right;
 
         let minP = Infinity, maxP = -Infinity;
@@ -881,7 +881,13 @@ canvas { display: block; width: 100%; height: 100%; }
         const getYPrice = (p) => padding.top + chartH - ((p - minP) / priceRange) * chartH;
 
         let maxVol = 0;
-        showVol.forEach(v => { if (v > maxVol) maxVol = v; });
+        showVols.forEach((v, idx) => {
+            if (v > maxVol) maxVol = v;
+            const v5 = showVol5[idx];
+            const v20 = showVol20[idx];
+            if (v5 !== null && v5 > maxVol) maxVol = v5;
+            if (v20 !== null && v20 > maxVol) maxVol = v20;
+        });
         maxVol = maxVol || 1;
         const getYVol = (v) => volAreaTop + volH - (v / maxVol) * volH;
 
@@ -900,7 +906,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
         ctx.clearRect(0, 0, width, height);
 
-        // 主圖網格線
+        // 背景格線
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.lineWidth = 1;
         for (let i = 0; i <= 3; i++) {
@@ -923,22 +929,51 @@ canvas { display: block; width: 100%; height: 100%; }
             const isMondayStart = (utcDay === 1 && utcHour === 0);
             const isDailyStart = (utcHour === 0 && utcMin === 0);
 
-            if (periodType !== '1d' && (isMondayStart || isDailyStart)) {
-                ctx.strokeStyle = isMondayStart ? 'rgba(157, 78, 221, 0.75)' : 'rgba(0, 240, 255, 0.45)';
-                ctx.lineWidth = isMondayStart ? 1.5 : 1.2;
-                ctx.setLineDash([3, 3]);
-                const x = padding.left + i * barWidth + barWidth / 2;
-                ctx.beginPath();
-                ctx.moveTo(x, padding.top);
-                ctx.lineTo(x, padding.top + chartH);
-                ctx.stroke();
+            if (periodType === '1d') {
+                if (isMondayStart) {
+                    ctx.strokeStyle = 'rgba(157, 78, 221, 0.9)';
+                    ctx.lineWidth = 1.6;
+                    ctx.setLineDash([3, 3]);
+                    const x = padding.left + i * barWidth + barWidth / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding.top);
+                    ctx.lineTo(x, padding.top + chartH);
+                    ctx.stroke();
+                }
+            } else {
+                if (isMondayStart) {
+                    ctx.strokeStyle = 'rgba(157, 78, 221, 0.75)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([3, 3]);
+                    const x = padding.left + i * barWidth + barWidth / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding.top);
+                    ctx.lineTo(x, padding.top + chartH);
+                    ctx.stroke();
 
-                ctx.save();
-                ctx.font = isMondayStart ? 'bold 8px JetBrains Mono' : '7px JetBrains Mono';
-                ctx.fillStyle = isMondayStart ? '#9d4edd' : '#00f0ff';
-                ctx.textAlign = 'center';
-                ctx.fillText(isMondayStart ? '週一' : `週${dayNames[utcDay]}`, x, padding.top - 4);
-                ctx.restore();
+                    ctx.save();
+                    ctx.font = 'bold 8px JetBrains Mono';
+                    ctx.fillStyle = '#9d4edd';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('週一', x, padding.top - 4);
+                    ctx.restore();
+                } else if (isDailyStart) {
+                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+                    ctx.lineWidth = 1.2;
+                    ctx.setLineDash([3, 3]);
+                    const x = padding.left + i * barWidth + barWidth / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, padding.top);
+                    ctx.lineTo(x, padding.top + chartH);
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.font = '7px JetBrains Mono';
+                    ctx.fillStyle = '#00f0ff';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`週${dayNames[utcDay]}`, x, padding.top - 4);
+                    ctx.restore();
+                }
             }
         });
 
@@ -966,13 +1001,13 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.restore();
         };
 
-        // 繪製移動平均線：5MA, 20MA, 30MA, 60MA
+        // 繪製主圖均線
         drawLine(showMA5, '#00ff66', 1);
-        drawLine(showMA20, '#ff9100', 1);
         drawLine(showMA30, '#ffea00', 1);
+        drawLine(showMA45, '#ff9100', 1);
         drawLine(showMA60, '#ff007f', 1.2);
 
-        // 繪製 K 線與閃電標記
+        // 繪製 K 線
         showK.forEach((k, i) => {
             const absoluteIdx = showStartIndex + i;
             const open = parseFloat(k[1]), high = parseFloat(k[2]), low = parseFloat(k[3]), close = parseFloat(k[4]);
@@ -1035,15 +1070,18 @@ canvas { display: block; width: 100%; height: 100%; }
             }
         });
 
-        // 繪製成交量（Volume）與 5VM、20VM
-        showVol.forEach((vVal, i) => {
-            const k = showK[i];
+        // 繪製副圖一：成交量與 5VM、20VM
+        showK.forEach((k, i) => {
             const open = parseFloat(k[1]), close = parseFloat(k[4]);
+            const vol = showVols[i];
             const x = padding.left + i * barWidth + barWidth / 2;
-            const yVal = getYVol(vVal);
+            const isUp = close >= open;
             const bw = Math.max(barWidth * 0.7, 1);
-            ctx.fillStyle = close >= open ? 'rgba(0, 255, 102, 0.45)' : 'rgba(255, 42, 109, 0.45)';
-            ctx.fillRect(x - bw / 2, yVal, bw, (volAreaTop + volH) - yVal);
+            const yVol = getYVol(vol);
+            const yBottom = volAreaTop + volH;
+
+            ctx.fillStyle = isUp ? 'rgba(0, 255, 102, 0.45)' : 'rgba(255, 42, 109, 0.45)';
+            ctx.fillRect(x - bw / 2, yVol, bw, yBottom - yVol);
         });
 
         const drawVolLine = (dataArray, color) => {
@@ -1067,10 +1105,10 @@ canvas { display: block; width: 100%; height: 100%; }
             ctx.restore();
         };
 
-        drawVolLine(showVM5, '#00ff66');
-        drawVolLine(showVM20, '#ffea00');
+        drawVolLine(showVol5, '#00ff66');   // 5VM
+        drawVolLine(showVol20, '#ffea00');  // 20VM
 
-        // 繪製 MACD 區
+        // 繪製副圖二：MACD
         const zeroY = getYMacd(0);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.lineWidth = 1;
@@ -1132,10 +1170,10 @@ canvas { display: block; width: 100%; height: 100%; }
     }
 
     function updatePanelTags() {
-        dom.tagText15m.innerText = `15M (${COUNT_15M}) [Vol/VM/MACD]`;
-        dom.tagText1h.innerText = `1H (${COUNT_1H}) [Vol/VM/MACD]`;
-        dom.tagText4h.innerText = `4H (${COUNT_4H}) [Vol/VM/MACD]`;
-        dom.tagText1d.innerText = `1D (${COUNT_1D}) [Vol/VM/MACD]`;
+        dom.tagText15m.innerText = `15M (${COUNT_15M}) [VOL/MACD]`;
+        dom.tagText1h.innerText = `1H (${COUNT_1H}) [VOL/MACD]`;
+        dom.tagText4h.innerText = `4H (${COUNT_4H}) [VOL/MACD]`;
+        dom.tagText1d.innerText = `1D (${COUNT_1D}) [VOL/MACD]`;
     }
 
     function openChartModal(index) {
