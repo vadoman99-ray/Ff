@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>⚡ 極速多週期多頭排列儀表板 (成交額前200)</title>
+<title>⚡ 極速多週期多頭排列儀表板 (幣安 成交額前200)</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap');
 :root {
@@ -43,9 +43,9 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     gap: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.6);
 }
-.header-top { display: flex; justify-content: space-between; align-items: center; }
+.header-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .header-title {
-    font-size: 1.1rem;
+    font-size: 1.08rem;
     font-weight: 900;
     letter-spacing: -0.5px;
     background: linear-gradient(135deg, #fff 30%, var(--manga-cyan));
@@ -54,6 +54,17 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     display: flex;
     align-items: center;
     gap: 6px;
+}
+.source-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255, 234, 0, 0.12);
+    color: var(--manga-yellow);
+    border: 1px solid rgba(255, 234, 0, 0.45);
+    -webkit-text-fill-color: var(--manga-yellow);
 }
 .scan-btn {
     background: linear-gradient(135deg, var(--manga-pink) 0%, #ff5500 100%);
@@ -71,357 +82,4 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 .scan-btn:active { transform: scale(0.95); }
 .scan-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
 .progress-container { height: 3px; background: rgba(255, 255, 255, 0.05); width: 100%; }
-.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.05s linear; }
-.tab-container { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; padding: 0 12px; margin-top: 12px; }
-.tab-btn {
-    padding: 8px 2px;
-    border-radius: 8px;
-    font-weight: 800;
-    font-size: 0.65rem;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #94a3b8;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.tab-btn.active {
-    background: rgba(0, 240, 255, 0.15);
-    border-color: var(--manga-cyan);
-    color: #fff;
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
-}
-.tab-btn.low-risk {
-    background: rgba(255, 234, 0, 0.15);
-    border-color: var(--manga-yellow);
-    color: var(--manga-yellow);
-}
-.tab-btn.low-risk.active {
-    background: rgba(255, 234, 0, 0.3);
-    border-color: var(--manga-yellow);
-    color: #fff;
-    box-shadow: 0 0 12px rgba(255, 234, 0, 0.4);
-}
-.sort-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 16px;
-    margin-top: 10px;
-    flex-wrap: wrap;
-}
-.sort-label {
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: #64748b;
-    font-family: 'JetBrains Mono', monospace;
-}
-.sort-btn {
-    padding: 5px 10px;
-    border-radius: 7px;
-    font-size: 0.7rem;
-    font-weight: 800;
-    font-family: 'JetBrains Mono', monospace;
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #94a3b8;
-    cursor: pointer;
-    transition: all 0.18s ease;
-}
-.sort-btn.active {
-    background: rgba(255, 0, 127, 0.18);
-    border-color: var(--manga-pink);
-    color: #fff;
-    box-shadow: 0 0 10px rgba(255, 0, 127, 0.22);
-}
-.dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px 16px; }
-.stat-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 14px;
-    padding: 12px;
-    text-align: center;
-    backdrop-filter: blur(10px);
-}
-.stat-card .val { font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 800; }
-.stat-card.entry { border-color: rgba(255, 0, 127, 0.4); }
-.stat-card.entry .val { color: var(--manga-pink); text-shadow: 0 0 10px rgba(255, 0, 127, 0.3); }
-.container { padding: 0 16px; }
-
-.symbol-card {
-    background: var(--card-bg);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-left: 4px solid var(--manga-green);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: stretch;
-    gap: 10px;
-    backdrop-filter: blur(10px);
-    cursor: pointer;
-    transition: border-color 0.2s, transform 0.2s, background-color 0.2s;
-    will-change: transform;
-}
-.symbol-card.tier-high {
-    border-left-color: var(--manga-pink);
-    box-shadow: inset 3px 0 12px rgba(255, 0, 127, 0.14);
-}
-.symbol-card.tier-mid {
-    border-left-color: var(--manga-cyan);
-}
-.symbol-card:hover { border-color: var(--manga-cyan); background: rgba(0, 240, 255, 0.08); transform: translateY(-2px); }
-.symbol-card:active { transform: scale(0.98); }
-
-.card-left { flex: 1; min-width: 0; }
-.card-right {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: flex-end;
-    text-align: right;
-    flex-shrink: 0;
-}
-
-.symbol-name { font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 800; }
-.symbol-price { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; color: var(--manga-yellow); font-weight: 700; }
-.detail-row { font-size: 0.76rem; font-family: 'JetBrains Mono', monospace; color: #94a3b8; margin-top: 5px; line-height: 1.35; }
-.badge-rank { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 255, 255, 0.1); color: #fff; }
-.badge-bull { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(0, 255, 102, 0.15); color: var(--manga-green); border: 1px solid var(--manga-green); }
-.badge-multi { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 0, 127, 0.15); color: #ff66b2; border: 1px solid var(--manga-pink); }
-.badge-super { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 900; background: linear-gradient(90deg, rgba(255, 0, 127, 0.25), rgba(0, 240, 255, 0.2)); color: #fff; border: 1px solid var(--manga-cyan); }
-.badge-lowrisk { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 800; background: rgba(255, 234, 0, 0.2); color: var(--manga-yellow); border: 1px solid var(--manga-yellow); }
-
-.tf-matrix {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-    margin-top: 7px;
-}
-.tf-pill {
-    border-radius: 6px;
-    padding: 4px 4px;
-    text-align: center;
-    font-family: 'JetBrains Mono', monospace;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(15, 23, 42, 0.55);
-}
-.tf-pill .tf-label {
-    font-size: 0.62rem;
-    font-weight: 800;
-    color: #64748b;
-    display: block;
-    line-height: 1.1;
-}
-.tf-pill .tf-sub {
-    font-size: 0.58rem;
-    font-weight: 700;
-    color: #475569;
-    display: block;
-    margin-top: 2px;
-    line-height: 1.1;
-}
-.tf-pill.active-tf {
-    background: rgba(0, 255, 102, 0.12);
-    border-color: rgba(0, 255, 102, 0.55);
-}
-.tf-pill.active-tf .tf-label { color: var(--manga-green); }
-.tf-pill.active-tf .tf-sub { color: #e2e8f0; }
-
-.tf-pill.active-htf {
-    background: rgba(255, 0, 127, 0.14);
-    border-color: rgba(255, 0, 127, 0.65);
-}
-.tf-pill.active-htf .tf-label { color: #ff66b2; }
-.tf-pill.active-htf .tf-sub { color: #fff; }
-
-.val-up { color: var(--manga-green); }
-.val-down { color: var(--manga-red); }
-
-.chart-modal {
-    position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
-    background: rgba(4, 6, 14, 0.95);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    z-index: 1000;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    padding: 4px;
-    overflow: hidden;
-    touch-action: pan-y;
-}
-.chart-modal.active { display: flex; }
-.chart-box {
-    width: 100%; max-width: 1200px;
-    height: 100%; max-height: 100vh; max-height: 100dvh;
-    background: #0b0f19;
-    border: 1px solid rgba(0, 240, 255, 0.35);
-    border-radius: 12px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 0 50px rgba(0, 240, 255, 0.2);
-    position: relative;
-    transition: transform 0.15s ease-out;
-}
-.chart-header {
-    padding: 6px 10px;
-    background: #111726;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    gap: 4px;
-    flex-shrink: 0;
-    z-index: 2;
-}
-.header-title-group { display: flex; align-items: center; gap: 6px; }
-.symbol-title { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 800; color: #fff; }
-.symbol-rank-tag { font-size: 0.65rem; color: var(--manga-cyan); font-weight: 800; }
-.legend-bar { display: flex; gap: 6px; font-size: 0.52rem; font-family: 'JetBrains Mono', monospace; flex-wrap: wrap; }
-.legend-item { display: flex; align-items: center; gap: 2px; }
-.legend-color { width: 5px; height: 5px; border-radius: 2px; }
-.close-btn {
-    background: rgba(255,255,255,0.08);
-    color: #a0aec0;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 50%;
-    width: 24px; height: 24px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: background-color 0.15s ease;
-    flex-shrink: 0;
-}
-.close-btn:hover { background: var(--manga-red); color: #fff; border-color: var(--manga-red); }
-.nav-btn {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(0, 240, 255, 0.3);
-    color: var(--manga-cyan);
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1rem; cursor: pointer; z-index: 10;
-    backdrop-filter: blur(4px);
-    transition: all 0.2s ease;
-}
-.nav-btn:hover { background: var(--manga-cyan); color: #000; box-shadow: 0 0 12px var(--manga-cyan); }
-.nav-btn.prev { left: 4px; }
-.nav-btn.next { right: 4px; }
-
-.charts-wrapper {
-    flex: 1;
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    background: #060911;
-    overflow: hidden;
-    min-height: 0;
-}
-.charts-wrapper.single-view {
-    display: block !important;
-}
-.charts-wrapper.single-view .chart-panel {
-    display: none;
-    width: 100%;
-    height: 100%;
-    border: none !important;
-}
-.charts-wrapper.single-view .chart-panel.active-single {
-    display: block;
-}
-
-.chart-panel {
-    position: relative;
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    min-height: 0;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-.chart-panel:hover { background: rgba(0, 240, 255, 0.03); }
-.chart-panel:nth-child(2) { border-right: none; }
-.chart-panel:nth-child(4) { border-right: none; }
-.chart-panel:nth-child(3), .chart-panel:nth-child(4) { border-bottom: none; }
-
-.panel-tag {
-    position: absolute; top: 3px; left: 6px; z-index: 5;
-    font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; font-weight: 800;
-    padding: 1px 4px; border-radius: 3px;
-    background: rgba(0,0,0,0.6); color: var(--manga-cyan);
-    border: 1px solid rgba(0, 240, 255, 0.3);
-    pointer-events: none;
-}
-canvas { display: block; width: 100%; height: 100%; }
-
-@media (max-width: 600px) {
-    .chart-modal { padding: 0; }
-    .chart-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
-    .chart-header { padding: 4px 8px; }
-    .symbol-title { font-size: 0.8rem; }
-    .legend-bar { font-size: 0.45rem; gap: 3px; }
-    .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
-    .tab-btn { font-size: 0.55rem; padding: 6px 1px; }
-}
-</style>
-</head>
-<body>
-<div class="app-header">
-    <div class="header-top">
-        <div class="header-title">⚡ 多週期多頭排列儀表板 (成交額前200)</div>
-        <button id="scanBtn" class="scan-btn">啟動極速掃描</button>
-    </div>
-</div>
-<div class="progress-container"><div id="progress" class="progress-fill"></div></div>
-<div class="tab-container">
-    <button id="tab15m" class="tab-btn active">⚡15M(<span id="count15m">0</span>)</button>
-    <button id="tab1h" class="tab-btn">⚡1H(<span id="count1h">0</span>)</button>
-    <button id="tab4h" class="tab-btn">⚡4H(<span id="count4h">0</span>)</button>
-    <button id="tab1d" class="tab-btn">⚡1D(<span id="count1d">0</span>)</button>
-    <button id="tabMulti" class="tab-btn">🔥共振(<span id="countMulti">0</span>)</button>
-    <button id="tabLowRisk" class="tab-btn low-risk">⭐閃電精選(<span id="countLowRisk">0</span>)</button>
-</div>
-<div class="sort-bar">
-    <span class="sort-label">排序：</span>
-    <button id="sortVolume" class="sort-btn active" data-sort="volume">24H 成交額</button>
-    <button id="sortMatch" class="sort-btn" data-sort="match">共振週期數</button>
-    <button id="sortBias" class="sort-btn" data-sort="bias">60MA 乖離率</button>
-</div>
-<div class="dashboard">
-    <div class="stat-card">
-        <div class="val" id="statTotal" style="color:var(--manga-cyan)">0</div>
-        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數 (成交額前200)</div>
-    </div>
-    <div class="stat-card entry">
-        <div class="val" id="statEntry">0</div>
-        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;" id="statLabel">當前清單符合數</div>
-    </div>
-</div>
-<div class="container" id="symbolList"></div>
-
-<div id="chartModal" class="chart-modal" aria-hidden="true">
-    <button id="prevBtn" class="nav-btn prev" aria-label="上一隻">❮</button>
-    <button id="nextBtn" class="nav-btn next" aria-label="下一隻">❯</button>
-    <div id="chartBox" class="chart-box" role="dialog" aria-modal="true">
-        <div class="chart-header">
-            <div class="header-title-group">
-                <span id="symbolRankTag" class="symbol-rank-tag">#1</span>
-                <div id="symbolTitle" class="symbol-title">BTCUSDT</div>
-            </div>
-            <div class="legend-bar">
-                <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
-                <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5VM</div>
-                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>20VM</div>
-                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>MACD</div>
-                <div class="legend
+.progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--manga-pink), var(--manga-cyan)); transition: width 0.
