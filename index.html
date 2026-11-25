@@ -408,7 +408,6 @@ canvas { display: block; width: 100%; height: 100%; }
     <button id="sortVolume" class="sort-btn active" data-sort="volume">24H 成交額</button>
     <button id="sortMatch" class="sort-btn" data-sort="match">共振週期數</button>
     <button id="sortBias" class="sort-btn" data-sort="bias">60MA 乖離率</button>
-    <button id="sortChange" class="sort-btn" data-sort="change">24H 漲跌幅</button>
 </div>
 <div class="dashboard">
     <div class="stat-card">
@@ -494,6 +493,7 @@ canvas { display: block; width: 100%; height: 100%; }
     let currentIndex = -1;
     let maximizedPeriod = null;
     const klinesCache = new Map();
+    const indicatorCache = new Map();
 
     const dom = {
         scanBtn: document.getElementById('scanBtn'),
@@ -601,6 +601,44 @@ canvas { display: block; width: 100%; height: 100%; }
         return { macdLine, signalLine, histogram };
     }
 
+    function getComputedIndicators(symbol, periodType, klinesRaw) {
+        const cacheKey = `${symbol}:${periodType}:${klinesRaw.length}:${klinesRaw[klinesRaw.length - 1]?.[0] ?? 0}`;
+        const hit = indicatorCache.get(cacheKey);
+        if (hit) return hit;
+
+        const len = klinesRaw.length;
+        const closesAll = new Array(len);
+        const volumesAll = new Array(len);
+        for (let i = 0; i < len; i++) {
+            closesAll[i] = parseFloat(klinesRaw[i][4]);
+            volumesAll[i] = parseFloat(klinesRaw[i][7]);
+        }
+
+        const ma5All = calculateSMA(closesAll, P0);
+        const ma30All = calculateSMA(closesAll, P1);
+        const ma45All = calculateSMA(closesAll, P2);
+        const ma60All = calculateSMA(closesAll, P3);
+        const vol5All = calculateSMA(volumesAll, 5);
+        const vol20All = calculateSMA(volumesAll, 20);
+        const macdRes = calculateMACD(closesAll, 12, 26, 9);
+
+        const computed = {
+            closesAll,
+            volumesAll,
+            ma5All,
+            ma30All,
+            ma45All,
+            ma60All,
+            vol5All,
+            vol20All,
+            macdAll: macdRes.macdLine,
+            signalAll: macdRes.signalLine,
+            histAll: macdRes.histogram
+        };
+        indicatorCache.set(cacheKey, computed);
+        return computed;
+    }
+
     function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
         if (idx < 0 || idx >= closes.length) return false;
         const price = closes[idx];
@@ -634,197 +672,4 @@ canvas { display: block; width: 100%; height: 100%; }
             return item.bull4h.ma3DistPercent;
         }
         if (activeTab === '1d' && typeof item.bull1d?.ma3DistPercent === 'number') {
-            return item.bull1d.ma3DistPercent;
-        }
-
-        const values = [
-            item.bull15m?.ma3DistPercent,
-            item.bull1h?.ma3DistPercent,
-            item.bull4h?.ma3DistPercent,
-            item.bull1d?.ma3DistPercent
-        ].filter(v => typeof v === 'number' && !Number.isNaN(v));
-        return values.length > 0 ? Math.max(...values) : -Infinity;
-    }
-
-    function sortItems(list) {
-        const copy = list.slice();
-        if (sortMode === 'match') {
-            copy.sort((a, b) => (b.matchCount - a.matchCount) || (b.quoteVolume24h - a.quoteVolume24h));
-        } else if (sortMode === 'bias') {
-            copy.sort((a, b) => (getSortBiasValue(b) - getSortBiasValue(a)) || (b.quoteVolume24h - a.quoteVolume24h));
-        } else if (sortMode === 'change') {
-            copy.sort((a, b) => (b.priceChange24h - a.priceChange24h) || (b.quoteVolume24h - a.quoteVolume24h));
-        } else {
-            copy.sort((a, b) => b.quoteVolume24h - a.quoteVolume24h);
-        }
-        return copy;
-    }
-
-    const workerCode = `
-    function calculateSMA(data, period) {
-        const len = data.length;
-        if (len < period) return new Array(len).fill(null);
-        const ma = new Array(len).fill(null);
-        let sum = 0;
-        for (let i = 0; i < period; i++) sum += data[i];
-        ma[period - 1] = sum / period;
-        for (let i = period; i < len; i++) {
-            sum += data[i] - data[i - period];
-            ma[i] = sum / period;
-        }
-        return ma;
-    }
-    function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
-        if (idx < 0 || idx >= closes.length) return false;
-        const price = closes[idx];
-        return (ma5[idx] !== null && price >= ma5[idx]) &&
-               (ma30[idx] !== null && price >= ma30[idx]) &&
-               (ma45[idx] !== null && price >= ma45[idx]) &&
-               (ma60[idx] !== null && price >= ma60[idx]);
-    }
-    function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
-        if (idx < 0 || idx >= closes.length) return false;
-        const price = closes[idx];
-        const m30 = ma30[idx], m45 = ma45[idx], m60 = ma60[idx];
-        return (m30 !== null && price >= m30) && (m45 !== null && price >= m45) && (m60 !== null && price >= m60);
-    }
-    function checkIsFirstBarLightning(klinesRaw, useMA5) {
-        const totalLen = klinesRaw.length;
-        if (totalLen < 60) return false;
-        const closes = klinesRaw.map(k => parseFloat(k[4]));
-        const ma1Arr = calculateSMA(closes, 30);
-        const ma2Arr = calculateSMA(closes, 45);
-        const ma3Arr = calculateSMA(closes, 60);
-        const ma5Arr = calculateSMA(closes, 5);
-
-        const nowIdx = totalLen - 1;
-        const prevIdx = totalLen - 2;
-
-        const isNowAbove = useMA5
-            ? checkAboveMAs5_30_45_60(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, nowIdx)
-            : checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, nowIdx);
-        const isPrevAbove = useMA5
-            ? checkAboveMAs5_30_45_60(closes, ma5Arr, ma1Arr, ma2Arr, ma3Arr, prevIdx)
-            : checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, prevIdx);
-
-        return isNowAbove && !isPrevAbove;
-    }
-
-    function isBullishAlignment(klinesRaw) {
-        const totalLen = klinesRaw.length;
-        if (totalLen < 60) return null;
-        const closes = klinesRaw.map(k => parseFloat(k[4]));
-        const price = closes[totalLen - 1];
-        const ma1Arr = calculateSMA(closes, 30);
-        const ma2Arr = calculateSMA(closes, 45);
-        const ma3Arr = calculateSMA(closes, 60);
-        const ma1 = ma1Arr[totalLen - 1];
-        const ma2 = ma2Arr[totalLen - 1];
-        const ma3 = ma3Arr[totalLen - 1];
-        if (ma1 !== null && ma2 !== null && ma3 !== null && ma1 > ma2 && ma2 > ma3 && price >= ma3) {
-            const ma3DistPercent = ((price - ma3) / ma3) * 100;
-            const isAboveAllNow = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 1);
-            const isAboveAllPrev = checkAboveMAs30_45_60(closes, ma1Arr, ma2Arr, ma3Arr, totalLen - 2);
-            const isFirstBarAboveAll = isAboveAllNow && !isAboveAllPrev;
-            return { price, ma3DistPercent, isAboveAllMAs: isAboveAllNow, isFirstBarAboveAll };
-        }
-        return null;
-    }
-
-    async function fetchWithRetry(url, retries = 3, delay = 400) {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const res = await fetch(url);
-                if (res.status === 429 || res.status === 418) {
-                    await new Promise(r => setTimeout(r, delay * Math.pow(2, i)));
-                    continue;
-                }
-                if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
-                return await res.json();
-            } catch (err) {
-                if (i === retries - 1) throw err;
-                await new Promise(r => setTimeout(r, delay));
-            }
-        }
-        throw new Error('Max retries exceeded');
-    }
-
-    async function fetchSymbol(symbol, apiBase, limits) {
-        try {
-            const [klines15m, klines1h, klines4h, klines1d] = await Promise.all([
-                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=15m&limit=\${limits.l15m}\`),
-                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1h&limit=\${limits.l1h}\`),
-                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=4h&limit=\${limits.l4h}\`),
-                fetchWithRetry(\`\${apiBase}/fapi/v1/klines?symbol=\${symbol}&interval=1d&limit=\${limits.l1d}\`)
-            ]);
-
-            const bull15m = isBullishAlignment(klines15m);
-            const bull1h = isBullishAlignment(klines1h);
-            const bull4hReal = isBullishAlignment(klines4h);
-            const bull1dReal = isBullishAlignment(klines1d);
-
-            if (!bull15m && !bull1h && !bull4hReal && !bull1dReal) return null;
-            let matchCount = 0;
-            if (bull15m) matchCount++;
-            if (bull1h) matchCount++;
-            if (bull4hReal) matchCount++;
-            if (bull1dReal) matchCount++;
-
-            const lightning1h = checkIsFirstBarLightning(klines1h, true);
-            const lightning4h = checkIsFirstBarLightning(klines4h, true);
-            const lightning1d = checkIsFirstBarLightning(klines1d, true);
-
-            const isLightningMatch = lightning1h || lightning4h || lightning1d;
-
-            let lightningType = '';
-            if (lightning1d) lightningType = '1D';
-            else if (lightning4h) lightningType = '4H';
-            else if (lightning1h) lightningType = '1H';
-
-            return {
-                symbol, bull15m, bull1h, bull4h: bull4hReal, bull1d: bull1dReal, matchCount,
-                isLightningMatch, lightningType,
-                currentPrice: (bull15m || bull1h || bull4hReal || bull1dReal).price,
-                rawKlines: { k15m: klines15m, k1h: klines1h, k4h: klines4h, k1d: klines1d }
-            };
-        } catch {
-            return null;
-        }
-    }
-
-    self.onmessage = async function(e) {
-        const { symbols, apiBase, limits } = e.data;
-        const concurrency = 8;
-        let completed = 0;
-        const matches = [];
-
-        for (let i = 0; i < symbols.length; i += concurrency) {
-            const chunk = symbols.slice(i, i + concurrency);
-            const chunkResults = await Promise.all(chunk.map(sym => fetchSymbol(sym, apiBase, limits)));
-            for (const res of chunkResults) {
-                if (res) matches.push(res);
-            }
-            completed += chunk.length;
-            self.postMessage({ type: 'progress', completed, total: symbols.length });
-            if (i + concurrency < symbols.length) {
-                await new Promise(r => setTimeout(r, 40));
-            }
-        }
-        self.postMessage({ type: 'done', matches });
-    };
-    `;
-
-    async function startScan() {
-        if (isScanning) return;
-        isScanning = true;
-        dom.scanBtn.disabled = true;
-        dom.scanBtn.innerText = "⚡ 掃描中 0%";
-        dom.symbolList.replaceChildren();
-        dom.progress.style.width = '0%';
-        klinesCache.clear();
-
-        let allTickers = [];
-        try {
-            const res = await fetch(`${API_BASE}/fapi/v1/ticker/24hr`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await
+            return item.bull1d.ma3DistPercent
