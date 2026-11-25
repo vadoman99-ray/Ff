@@ -105,6 +105,38 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     color: #fff;
     box-shadow: 0 0 12px rgba(255, 234, 0, 0.4);
 }
+.sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+.sort-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #64748b;
+    font-family: 'JetBrains Mono', monospace;
+}
+.sort-btn {
+    padding: 5px 10px;
+    border-radius: 7px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+.sort-btn.active {
+    background: rgba(255, 0, 127, 0.18);
+    border-color: var(--manga-pink);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 0, 127, 0.22);
+}
 .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 12px 16px; }
 .stat-card {
     background: var(--card-bg);
@@ -269,4 +301,127 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
 }
 .close-btn:hover { background: var(--manga-red); color: #fff; border-color: var(--manga-red); }
 .nav-btn {
-    position: absolute; top: 50%; transform: translate
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    color: var(--manga-cyan);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; cursor: pointer; z-index: 10;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+}
+.nav-btn:hover { background: var(--manga-cyan); color: #000; box-shadow: 0 0 12px var(--manga-cyan); }
+.nav-btn.prev { left: 4px; }
+.nav-btn.next { right: 4px; }
+
+.charts-wrapper {
+    flex: 1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    background: #060911;
+    overflow: hidden;
+    min-height: 0;
+}
+.charts-wrapper.single-view {
+    display: block !important;
+}
+.charts-wrapper.single-view .chart-panel {
+    display: none;
+    width: 100%;
+    height: 100%;
+    border: none !important;
+}
+.charts-wrapper.single-view .chart-panel.active-single {
+    display: block;
+}
+
+.chart-panel {
+    position: relative;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.chart-panel:hover { background: rgba(0, 240, 255, 0.03); }
+.chart-panel:nth-child(2) { border-right: none; }
+.chart-panel:nth-child(4) { border-right: none; }
+.chart-panel:nth-child(3), .chart-panel:nth-child(4) { border-bottom: none; }
+
+.panel-tag {
+    position: absolute; top: 3px; left: 6px; z-index: 5;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; font-weight: 800;
+    padding: 1px 4px; border-radius: 3px;
+    background: rgba(0,0,0,0.6); color: var(--manga-cyan);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    pointer-events: none;
+}
+canvas { display: block; width: 100%; height: 100%; }
+
+@media (max-width: 600px) {
+    .chart-modal { padding: 0; }
+    .chart-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
+    .chart-header { padding: 4px 8px; }
+    .symbol-title { font-size: 0.8rem; }
+    .legend-bar { font-size: 0.45rem; gap: 3px; }
+    .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
+    .tab-btn { font-size: 0.55rem; padding: 6px 1px; }
+}
+</style>
+</head>
+<body>
+<div class="app-header">
+    <div class="header-top">
+        <div class="header-title">⚡ 多週期多頭排列儀表板 (成交額前200)</div>
+        <button id="scanBtn" class="scan-btn">啟動極速掃描</button>
+    </div>
+</div>
+<div class="progress-container"><div id="progress" class="progress-fill"></div></div>
+<div class="tab-container">
+    <button id="tab15m" class="tab-btn active">⚡15M(<span id="count15m">0</span>)</button>
+    <button id="tab1h" class="tab-btn">⚡1H(<span id="count1h">0</span>)</button>
+    <button id="tab4h" class="tab-btn">⚡4H(<span id="count4h">0</span>)</button>
+    <button id="tab1d" class="tab-btn">⚡1D(<span id="count1d">0</span>)</button>
+    <button id="tabMulti" class="tab-btn">🔥共振(<span id="countMulti">0</span>)</button>
+    <button id="tabLowRisk" class="tab-btn low-risk">⭐閃電精選(<span id="countLowRisk">0</span>)</button>
+</div>
+<div class="sort-bar">
+    <span class="sort-label">排序：</span>
+    <button id="sortVolume" class="sort-btn active" data-sort="volume">24H 成交額</button>
+    <button id="sortMatch" class="sort-btn" data-sort="match">共振週期數</button>
+    <button id="sortBias" class="sort-btn" data-sort="bias">60MA 乖離率</button>
+</div>
+<div class="dashboard">
+    <div class="stat-card">
+        <div class="val" id="statTotal" style="color:var(--manga-cyan)">0</div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">掃描目標數 (成交額前200)</div>
+    </div>
+    <div class="stat-card entry">
+        <div class="val" id="statEntry">0</div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;" id="statLabel">當前清單符合數</div>
+    </div>
+</div>
+<div class="container" id="symbolList"></div>
+
+<div id="chartModal" class="chart-modal" aria-hidden="true">
+    <button id="prevBtn" class="nav-btn prev" aria-label="上一隻">❮</button>
+    <button id="nextBtn" class="nav-btn next" aria-label="下一隻">❯</button>
+    <div id="chartBox" class="chart-box" role="dialog" aria-modal="true">
+        <div class="chart-header">
+            <div class="header-title-group">
+                <span id="symbolRankTag" class="symbol-rank-tag">#1</span>
+                <div id="symbolTitle" class="symbol-title">BTCUSDT</div>
+            </div>
+            <div class="legend-bar">
+                <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>20VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>MACD</div>
+                <div class="legend
