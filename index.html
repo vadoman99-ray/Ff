@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>⚡ 極速多週期多頭排列儀表板 (成交金額前200)</title>
+<title>⚡ 極速多週期多頭排列儀表板 (幣安 成交金額前200)</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Noto+Sans+TC:wght@700;900&family=JetBrains+Mono:wght@700;800;900&display=swap');
 :root {
@@ -54,6 +54,17 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     display: flex;
     align-items: center;
     gap: 6px;
+}
+.source-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255, 234, 0, 0.12);
+    color: var(--manga-yellow);
+    border: 1px solid rgba(255, 234, 0, 0.45);
+    -webkit-text-fill-color: var(--manga-yellow);
 }
 .scan-btn {
     background: linear-gradient(135deg, var(--manga-pink) 0%, #ff5500 100%);
@@ -321,4 +332,337 @@ body.modal-open { overflow: hidden; position: fixed; width: 100%; height: 100%; 
     width: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr
+    grid-template-rows: 1fr 1fr;
+    background: #060911;
+    overflow: hidden;
+    min-height: 0;
+}
+.charts-wrapper.single-view {
+    display: block !important;
+}
+.charts-wrapper.single-view .chart-panel {
+    display: none;
+    width: 100%;
+    height: 100%;
+    border: none !important;
+}
+.charts-wrapper.single-view .chart-panel.active-single {
+    display: block;
+}
+
+.chart-panel {
+    position: relative;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.chart-panel:hover { background: rgba(0, 240, 255, 0.03); }
+.chart-panel:nth-child(2) { border-right: none; }
+.chart-panel:nth-child(4) { border-right: none; }
+.chart-panel:nth-child(3), .chart-panel:nth-child(4) { border-bottom: none; }
+
+.panel-tag {
+    position: absolute; top: 3px; left: 6px; z-index: 5;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; font-weight: 800;
+    padding: 1px 4px; border-radius: 3px;
+    background: rgba(0,0,0,0.6); color: var(--manga-cyan);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    pointer-events: none;
+}
+canvas { display: block; width: 100%; height: 100%; }
+
+@media (max-width: 600px) {
+    .chart-modal { padding: 0; }
+    .chart-box { max-height: 100vh; max-height: 100dvh; border-radius: 0; border: none; }
+    .chart-header { padding: 4px 8px; }
+    .symbol-title { font-size: 0.8rem; }
+    .legend-bar { font-size: 0.45rem; gap: 3px; }
+    .nav-btn { width: 28px; height: 28px; font-size: 0.9rem; opacity: 0.6; }
+    .tab-btn { font-size: 0.55rem; padding: 6px 1px; }
+}
+</style>
+</head>
+<body>
+<div class="app-header">
+    <div class="header-top">
+        <div class="header-title">
+            ⚡ 多週期多頭排列儀表板 (成交金額前200)
+            <span class="source-tag">幣安 Binance</span>
+        </div>
+        <button id="scanBtn" class="scan-btn">啟動極速掃描</button>
+    </div>
+</div>
+<div class="progress-container"><div id="progress" class="progress-fill"></div></div>
+<div class="tab-container">
+    <button id="tab15m" class="tab-btn active">⚡15M(<span id="count15m">0</span>)</button>
+    <button id="tab1h" class="tab-btn">⚡1H(<span id="count1h">0</span>)</button>
+    <button id="tab4h" class="tab-btn">⚡4H(<span id="count4h">0</span>)</button>
+    <button id="tab1d" class="tab-btn">⚡1D(<span id="count1d">0</span>)</button>
+    <button id="tabMulti" class="tab-btn">🔥共振(<span id="countMulti">0</span>)</button>
+    <button id="tabLowRisk" class="tab-btn low-risk">⭐閃電精選(<span id="countLowRisk">0</span>)</button>
+</div>
+<div class="sort-bar">
+    <span class="sort-label">排序：</span>
+    <button id="sortVolume" class="sort-btn active" data-sort="volume">24H 成交額</button>
+    <button id="sortMatch" class="sort-btn" data-sort="match">共振週期數</button>
+    <button id="sortBias" class="sort-btn" data-sort="bias">60MA 乖離率</button>
+</div>
+<div class="dashboard">
+    <div class="stat-card">
+        <div class="val" id="statTotal" style="color:var(--manga-cyan)">0</div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">幣安掃描目標數 (成交金額前200)</div>
+    </div>
+    <div class="stat-card entry">
+        <div class="val" id="statEntry">0</div>
+        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;" id="statLabel">當前清單符合數</div>
+    </div>
+</div>
+<div class="container" id="symbolList"></div>
+
+<div id="chartModal" class="chart-modal" aria-hidden="true">
+    <button id="prevBtn" class="nav-btn prev" aria-label="上一隻">❮</button>
+    <button id="nextBtn" class="nav-btn next" aria-label="下一隻">❯</button>
+    <div id="chartBox" class="chart-box" role="dialog" aria-modal="true">
+        <div class="chart-header">
+            <div class="header-title-group">
+                <span id="symbolRankTag" class="symbol-rank-tag">#1</span>
+                <div id="symbolTitle" class="symbol-title">BTCUSDT</div>
+            </div>
+            <div class="legend-bar">
+                <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>30MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff9100"></div>45MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff007f"></div>60MA</div>
+                <div class="legend-item"><div class="legend-color" style="background:#00ff66"></div>5VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>20VM</div>
+                <div class="legend-item"><div class="legend-color" style="background:#00f0ff"></div>MACD</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ffea00"></div>Signal</div>
+            </div>
+            <button id="closeModalBtn" class="close-btn" aria-label="關閉">✕</button>
+        </div>
+        <div class="charts-wrapper" id="chartsWrapper">
+            <div class="chart-panel" id="wrapper15m" data-period="15m">
+                <span class="panel-tag" id="tagText15m">15M</span>
+                <canvas id="klineCanvas15m"></canvas>
+            </div>
+            <div class="chart-panel" id="wrapper1h" data-period="1h">
+                <span class="panel-tag" id="tagText1h">1H</span>
+                <canvas id="klineCanvas1h"></canvas>
+            </div>
+            <div class="chart-panel" id="wrapper4h" data-period="4h">
+                <span class="panel-tag" id="tagText4h">4H</span>
+                <canvas id="klineCanvas4h"></canvas>
+            </div>
+            <div class="chart-panel" id="wrapper1d" data-period="1d">
+                <span class="panel-tag" id="tagText1d">1D</span>
+                <canvas id="klineCanvas1d"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const EXCHANGE_NAME = '幣安 (Binance Futures)';
+    const API_BASE = 'https://fapi.binance.com';
+    const TOP_N = 200;
+    const P0 = 5, P1 = 30, P2 = 45, P3 = 60;
+
+    const COUNT_15M = 150;
+    const COUNT_1H = 50;
+    const COUNT_4H = 40;
+    const COUNT_1D = 30;
+
+    const FETCH_LIMIT_15M = COUNT_15M + P3 + 35;
+    const FETCH_LIMIT_1H = COUNT_1H + P3 + 35;
+    const FETCH_LIMIT_4H = COUNT_4H + P3 + 35;
+    const FETCH_LIMIT_1D = COUNT_1D + P3 + 35;
+
+    let results15M = [];
+    let results1H = [];
+    let results4H = [];
+    let results1D = [];
+    let resultsMulti = [];
+    let resultsLowRisk = [];
+    let activeTab = '15m';
+    let sortMode = 'volume';
+    let tickerMap = new Map();
+    let currentIndex = -1;
+    let maximizedPeriod = null;
+    const klinesCache = new Map();
+
+    const dom = {
+        scanBtn: document.getElementById('scanBtn'),
+        progress: document.getElementById('progress'),
+        statTotal: document.getElementById('statTotal'),
+        statEntry: document.getElementById('statEntry'),
+        count15m: document.getElementById('count15m'),
+        count1h: document.getElementById('count1h'),
+        count4h: document.getElementById('count4h'),
+        count1d: document.getElementById('count1d'),
+        countMulti: document.getElementById('countMulti'),
+        countLowRisk: document.getElementById('countLowRisk'),
+        tab15m: document.getElementById('tab15m'),
+        tab1h: document.getElementById('tab1h'),
+        tab4h: document.getElementById('tab4h'),
+        tab1d: document.getElementById('tab1d'),
+        tabMulti: document.getElementById('tabMulti'),
+        tabLowRisk: document.getElementById('tabLowRisk'),
+        sortBtns: Array.from(document.querySelectorAll('.sort-btn')),
+        symbolList: document.getElementById('symbolList'),
+        chartModal: document.getElementById('chartModal'),
+        symbolTitle: document.getElementById('symbolTitle'),
+        symbolRankTag: document.getElementById('symbolRankTag'),
+        closeModalBtn: document.getElementById('closeModalBtn'),
+        prevBtn: document.getElementById('prevBtn'),
+        nextBtn: document.getElementById('nextBtn'),
+        chartsWrapper: document.getElementById('chartsWrapper'),
+        wrapper15m: document.getElementById('wrapper15m'),
+        wrapper1h: document.getElementById('wrapper1h'),
+        wrapper4h: document.getElementById('wrapper4h'),
+        wrapper1d: document.getElementById('wrapper1d'),
+        canvas15m: document.getElementById('klineCanvas15m'),
+        canvas1h: document.getElementById('klineCanvas1h'),
+        canvas4h: document.getElementById('klineCanvas4h'),
+        canvas1d: document.getElementById('klineCanvas1d'),
+        tagText15m: document.getElementById('tagText15m'),
+        tagText1h: document.getElementById('tagText1h'),
+        tagText4h: document.getElementById('tagText4h'),
+        tagText1d: document.getElementById('tagText1d')
+    };
+
+    const ctx15m = dom.canvas15m.getContext('2d');
+    const ctx1h = dom.canvas1h.getContext('2d');
+    const ctx4h = dom.canvas4h.getContext('2d');
+    const ctx1d = dom.canvas1d.getContext('2d');
+
+    function calculateSMA(data, period) {
+        const len = data.length;
+        if (len < period) return new Array(len).fill(null);
+        const ma = new Array(len).fill(null);
+        let sum = 0;
+        for (let i = 0; i < period; i++) sum += data[i];
+        ma[period - 1] = sum / period;
+        for (let i = period; i < len; i++) {
+            sum += data[i] - data[i - period];
+            ma[i] = sum / period;
+        }
+        return ma;
+    }
+
+    function calculateEMA(data, period) {
+        const len = data.length;
+        const ema = new Array(len).fill(null);
+        if (len === 0) return ema;
+        const multiplier = 2 / (period + 1);
+        let sum = 0;
+        let initCount = Math.min(period, len);
+        for (let i = 0; i < initCount; i++) sum += data[i];
+        let prevEMA = sum / initCount;
+        ema[initCount - 1] = prevEMA;
+        for (let i = initCount; i < len; i++) {
+            prevEMA = (data[i] - prevEMA) * multiplier + prevEMA;
+            ema[i] = prevEMA;
+        }
+        return ema;
+    }
+
+    function calculateMACD(closes, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+        const fastEMA = calculateEMA(closes, fastPeriod);
+        const slowEMA = calculateEMA(closes, slowPeriod);
+        const macdLine = new Array(closes.length).fill(null);
+        for (let i = 0; i < closes.length; i++) {
+            if (fastEMA[i] !== null && slowEMA[i] !== null) {
+                macdLine[i] = fastEMA[i] - slowEMA[i];
+            }
+        }
+        const validMacdSubset = [];
+        const validIndices = [];
+        for (let i = 0; i < macdLine.length; i++) {
+            if (macdLine[i] !== null) {
+                validMacdSubset.push(macdLine[i]);
+                validIndices.push(i);
+            }
+        }
+        const signalSubset = calculateEMA(validMacdSubset, signalPeriod);
+        const signalLine = new Array(closes.length).fill(null);
+        const histogram = new Array(closes.length).fill(null);
+        for (let j = 0; j < validIndices.length; j++) {
+            const origIdx = validIndices[j];
+            const sigVal = signalSubset[j];
+            signalLine[origIdx] = sigVal;
+            if (sigVal !== null) {
+                histogram[origIdx] = macdLine[origIdx] - sigVal;
+            }
+        }
+        return { macdLine, signalLine, histogram };
+    }
+
+    function formatVolumeText(volume) {
+        const yi = volume / 100000000;
+        return yi.toFixed(2) + '億';
+    }
+
+    function getSortBiasValue(item) {
+        if (activeTab === '15m' && typeof item.bull15m?.ma3DistPercent === 'number') {
+            return item.bull15m.ma3DistPercent;
+        }
+        if (activeTab === '1h' && typeof item.bull1h?.ma3DistPercent === 'number') {
+            return item.bull1h.ma3DistPercent;
+        }
+        if (activeTab === '4h' && typeof item.bull4h?.ma3DistPercent === 'number') {
+            return item.bull4h.ma3DistPercent;
+        }
+        if (activeTab === '1d' && typeof item.bull1d?.ma3DistPercent === 'number') {
+            return item.bull1d.ma3DistPercent;
+        }
+
+        const values = [
+            item.bull15m?.ma3DistPercent,
+            item.bull1h?.ma3DistPercent,
+            item.bull4h?.ma3DistPercent,
+            item.bull1d?.ma3DistPercent
+        ].filter(v => typeof v === 'number' && !Number.isNaN(v));
+        return values.length > 0 ? Math.max(...values) : -Infinity;
+    }
+
+    function sortItems(list) {
+        const copy = list.slice();
+        if (sortMode === 'match') {
+            copy.sort((a, b) => (b.matchCount - a.matchCount) || (b.quoteVolume24h - a.quoteVolume24h));
+        } else if (sortMode === 'bias') {
+            copy.sort((a, b) => (getSortBiasValue(b) - getSortBiasValue(a)) || (b.quoteVolume24h - a.quoteVolume24h));
+        } else {
+            copy.sort((a, b) => b.quoteVolume24h - a.quoteVolume24h);
+        }
+        return copy;
+    }
+
+    const workerCode = `
+    function calculateSMA(data, period) {
+        const len = data.length;
+        if (len < period) return new Array(len).fill(null);
+        const ma = new Array(len).fill(null);
+        let sum = 0;
+        for (let i = 0; i < period; i++) sum += data[i];
+        ma[period - 1] = sum / period;
+        for (let i = period; i < len; i++) {
+            sum += data[i] - data[i - period];
+            ma[i] = sum / period;
+        }
+        return ma;
+    }
+    function checkAboveMAs5_30_45_60(closes, ma5, ma30, ma45, ma60, idx) {
+        if (idx < 0 || idx >= closes.length) return false;
+        const price = closes[idx];
+        return (ma5[idx] !== null && price >= ma5[idx]) &&
+               (ma30[idx] !== null && price >= ma30[idx]) &&
+               (ma45[idx] !== null && price >= ma45[idx]) &&
+               (ma60[idx] !== null && price >= ma60[idx]);
+    }
+    function checkAboveMAs30_45_60(closes, ma30, ma45, ma60, idx) {
+        if (idx < 0 || idx >= closes.length) return false;
+        const price = closes[idx];
+        const m30 = ma30[idx], m4
